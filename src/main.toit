@@ -19,6 +19,7 @@ import pictogrammers_icons.size_48 as icons
 import pixel_display.true_color show *
 import pixel_display.texture show *
 
+import .env
 import .get_display  // Import file in current project, see above.
 import .led
 import .iic
@@ -247,16 +248,16 @@ watch_touch:
             display_driver.backlight_on
             sleep --ms=20
             //display.draw
-        mqtt_debug (FortniteStats "FORTNITE_ACC").stringify
+        mqtt_debug (FortniteStats FORTNITE_ACC).stringify
       get_coords
     sleep --ms=20
 
 mqtt_client_connect -> mqtt.Client:
   network := net.open
-  transport := mqtt.TcpTransport network --host="MQTT_HOST"
+  transport := mqtt.TcpTransport network --host=MQTT_HOST
   cl := mqtt.Client --transport=transport
   options := mqtt.SessionOptions
-    --client_id="MQTT_CLIENT_ID"
+    --client_id=MQTT_CLIENT_ID
   cl.start --options=options
   return cl
 

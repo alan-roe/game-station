@@ -4,6 +4,8 @@ import net
 import encoding.json
 import certificate_roots
 
+import .env
+
 class FortniteStats:
   static HOST ::= "fortniteapi.io"
   static PATH ::= "/v1/stats?account="
@@ -17,7 +19,7 @@ class FortniteStats:
     client := http.Client.tls (net.open)
       --root_certificates=[certificate_roots.BALTIMORE_CYBERTRUST_ROOT]
     header := headers.Headers
-    header.set "Authorization" "FORTNITE_API_AUTH"
+    header.set "Authorization" FORTNITE_API_AUTH
     response := client.get HOST (PATH + id)
       --headers=header
 
