@@ -39,7 +39,7 @@ class ContentWindow extends UiElement:
 
   content_tx_ := ?
 
-  constructor x_ y_ .w_ .h_ .title content/string tracker --.title_font/Font?=(Font.get "sans10") --.content_font/Font?=(Font.get "sans10") --.font_color/int?=BLACK --.padding/int?=2 --.title_bg/int?=0xa6a6a6 --.content_bg/int?=0xc4c4c4 --transform/Transform?=Transform.identity:
+  constructor x_ y_ .w_ .h_ .title content/string tracker --rounded/bool?=false --.title_font/Font?=(Font.get "sans10") --.content_font/Font?=(Font.get "sans10") --.font_color/int?=BLACK --.padding/int?=2 --.title_bg/int?=0xa6a6a6 --.content_bg/int?=0xc4c4c4 --transform/Transform?=Transform.identity:
     title_text_h := text_height title title_font
     title_bar_h_ = title_text_h + (padding*2)
     content_height := text_height content content_font
@@ -48,8 +48,14 @@ class ContentWindow extends UiElement:
     content_tx_ = (MultiLineText x_ (y_ + content_offset) content content_font font_color transform padding tracker)
     
     super x_ y_ transform
+    
+    if rounded: 
+      tx_g_.add (RoundedCornerWindow (x_ - 1) (y_ - 1) (w_ + 2) (h_ + 12) transform 10 BLACK)
+      tx_g_.add (RoundedCornerWindow x_ y_ w_ (h_ + 10) transform 10 title_bg)
+    else: 
+      tx_g_.add (FilledRectangle title_bg x_ y_ w_ h_ transform)
 
-    tx_g_.add (FilledRectangle title_bg x_ y_ w_ h_ transform)
+    tx_g_.add (FilledRectangle BLACK (x_ - 1) (y_+ title_bar_h_ - 1) (w_ + 2) (h_ - title_bar_h_ + 2) transform)
     tx_g_.add (FilledRectangle content_bg x_ (y_ + title_bar_h_) w_ (h_ - title_bar_h_) transform)
     tx_g_.add (TextTexture (x_ + padding) (y_ + padding + title_text_h) transform TEXT_TEXTURE_ALIGN_LEFT title title_font font_color)
     tx_g_.add content_tx_.tx_g_
@@ -101,23 +107,28 @@ class Button extends UiElement:
   h_/int
 
   text/string
-  bg_rect_/FilledRectangle
+  bg_rect_ := ?
   txt_tex_/TextTexture
   enabled_color/int
   disabled_color/int
   enabled_ := true
-
   last_pressed_ := false
   pressed_ := false
   released_ := false
 
-  constructor x y .w_ .h_ .text/string tracker --.enabled_color/int?=0xa6a6a6 --.disabled_color/int?=0x9f9f9f --transform/Transform?=Transform.identity --font/Font?=(Font.get "sans10"):
+  constructor x y .w_ .h_ .text/string tracker --rounded/bool?=false --.enabled_color/int?=0xa6a6a6 --.disabled_color/int?=0x9f9f9f --transform/Transform?=Transform.identity --font/Font?=(Font.get "sans10"):
     text_h := text_height text font
-
-    bg_rect_ = (FilledRectangle enabled_color x y w_ h_ transform)
+    outline := ?
+    if rounded: 
+      outline = (RoundedCornerWindow (x - 1) (y - 1) (w_ + 2) (h_ + 2) transform 5 BLACK)
+      bg_rect_ = (RoundedCornerWindow x y w_ h_ transform 5 enabled_color) 
+    else: 
+      outline = (FilledRectangle BLACK (x - 1) (y - 1) (w_ + 2) (h_ + 2) transform)
+      bg_rect_ = (FilledRectangle enabled_color x y w_ h_ transform)
     txt_tex_ = (TextTexture (x + 5) (y + 5 + text_h) transform TEXT_TEXTURE_ALIGN_LEFT text font BLACK)
     super x y transform
 
+    tx_g_.add outline
     tx_g_.add bg_rect_
     tx_g_.add txt_tex_
     
@@ -183,7 +194,7 @@ class Ui:
     display.add el.tx_g_
     els.add el
 
-  window x y w h title --content/string?="" --title_font/Font?=(Font.get "sans10") --font_color/int?=BLACK --padding/int?=2 --title_bg/int?=0xa6a6a6 --content_bg/int?=0xc4c4c4 -> ContentWindow:
+  window x y w h title --rounded/bool?=false --content/string?="" --title_font/Font?=(Font.get "sans10") --font_color/int?=BLACK --padding/int?=2 --title_bg/int?=0xa6a6a6 --content_bg/int?=0xc4c4c4 -> ContentWindow:
     win := ContentWindow x y w h title content display
       --title_font=title_font
       --font_color=font_color
@@ -191,17 +202,19 @@ class Ui:
       --title_bg=title_bg
       --content_bg=content_bg
       --transform=ctx.transform
+      --rounded=rounded
     display.add win.tx_g_
     els.add win
     
     return win
   
-  button x y w h text --enabled_color/int?=0xa6a6a6 --disabled_color/int?=0x9f9f9f --font/Font?=(Font.get "sans10") -> Button:
+  button x y w h text --rounded/bool?=false --enabled_color/int?=0xa6a6a6 --disabled_color/int?=0x9f9f9f --font/Font?=(Font.get "sans10") -> Button:
     btn := Button x y w h text display
       --enabled_color = enabled_color
       --disabled_color = disabled_color
       --transform=ctx.transform
       --font = font
+      --rounded = rounded
     display.add btn.tx_g_
     btns.add btn
 
@@ -222,34 +235,56 @@ main:
   ui := Ui display
     --landscape
 
+  bg_color := 0xC5C9FF
+  content_color := 0xFDFAE6
+  title_color := 0xA2C7E8
   ui.window 0 0 480 320 "Jackson's Game Station"
     --title_font = sans_14
     --padding = 5
-    --content_bg = 0xd9d9d9
+    --title_bg = title_color
+    --content_bg = bg_color
+
   fortnite_stats_content := (ui.window 20 30 240 110 "Fortnite Stats" 
     --content = "Played: \nWins: \nKills: \nTop 25: "
     --title_font = sans_14
-    --padding = 5)
+    --title_bg = title_color
+    --content_bg = content_color
+    --padding = 5
+    --rounded)
 
   ui.window 20 160 240 140 "Messages" 
     --content = "No new messages"
     --title_font = sans_14
+    --title_bg = title_color
+    --content_bg = content_color
     --padding = 5
+    --rounded
   
   ui.window 280 160 175 140 "Actions"
     --title_font = sans_14
+    --title_bg = title_color
+    --content_bg = content_color
     --padding = 5
+    --rounded
   
   send_btn := (ui.button 290 192 155 30 "Send Invite"
-    --font = sans_14)
+    --font = sans_14
+    --enabled_color = title_color
+    --disabled_color = bg_color
+    --rounded)
   accept_btn := (ui.button 290 227 155 30 "Accept Invite"
-    --font = sans_14)
+    --font = sans_14
+    --enabled_color = title_color
+    --disabled_color = bg_color
+    --rounded)
   reject_btn := (ui.button 290 262 155 30 "Reject Invite"
-    --font = sans_14)
-  
+    --font = sans_14
+    --enabled_color = title_color
+    --disabled_color = bg_color
+    --rounded)
   sleep --ms=100
 
-  display.draw
+  display.draw --speed=100
 
   gt911_int
 
@@ -260,5 +295,5 @@ main:
     fortnite_stats_content.content = "Played: 203\nWins: $wins\nKills:  400\nTop 25: 60"
 
     ui.update get_coords
-    display.draw
+    display.draw --speed=100
     

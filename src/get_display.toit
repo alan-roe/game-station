@@ -4,7 +4,7 @@ import color_tft show *
 import pixel_display show *
 
                                              // MHz x    y    xoff yoff sda clock cs  dc  reset backlight invert
-WROOM_16_BIT_LANDSCAPE_SETTINGS          ::= [  65, 320, 480, 0,   0,   13, 14,   15, 2, -1,   27,         false, COLOR_TFT_16_BIT_MODE | COLOR_TFT_FLIP_X]
+WROOM_16_BIT_LANDSCAPE_SETTINGS          ::= [  65, 320, 480, 0,   0,   13, 14,   15, 2, -1,   27,         false,  COLOR_TFT_FLIP_X]
 
 pin_for num/int? -> gpio.Pin?:
   if num == null: return null
