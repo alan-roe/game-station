@@ -286,5 +286,5 @@ class Coordinate:
 
 get_coords -> Coordinate:
   GT911_Scan
-
-  return Coordinate (Dev_Now.X[0]) (Dev_Now.Y[0]) touched
+  
+  return Coordinate (480 - Dev_Now.Y[0]) (Dev_Now.X[0]) touched
