@@ -1,5 +1,6 @@
 import font show *
 import font_x11_adobe.sans_14
+import font_x11_adobe.sans_10
 import pixel_display.true_color show *
 import pixel_display.texture show *
 import pixel_display show *
@@ -50,13 +51,14 @@ class ContentWindow extends UiElement:
     super x_ y_ transform
     
     if rounded: 
-      tx_g_.add (RoundedCornerWindow (x_ - 1) (y_ - 1) (w_ + 2) (h_ + 12) transform 10 BLACK)
-      tx_g_.add (RoundedCornerWindow x_ y_ w_ (h_ + 10) transform 10 title_bg)
+      tx_g_.add (RoundedCornerWindow x_ y_ w_ h_ transform 8 BLACK)
+      tx_g_.add (RoundedCornerWindow (x_ + 1) (y_ + 1) (w_ - 2) (h_ - 2) transform 8 title_bg)
     else: 
       tx_g_.add (FilledRectangle title_bg x_ y_ w_ h_ transform)
+      tx_g_.add (FilledRectangle title_bg (x_ + 1) (y_ + 1) (w_ - 2) (h_ - 2) transform)
 
-    tx_g_.add (FilledRectangle BLACK (x_ - 1) (y_+ title_bar_h_ - 1) (w_ + 2) (h_ - title_bar_h_ + 2) transform)
-    tx_g_.add (FilledRectangle content_bg x_ (y_ + title_bar_h_) w_ (h_ - title_bar_h_) transform)
+    tx_g_.add (FilledRectangle BLACK x_ (y_+ title_bar_h_) w_ (h_ - title_bar_h_ - 8) transform)
+    tx_g_.add (FilledRectangle content_bg (x_ + 1) (y_ + title_bar_h_ + 1) (w_ - 2) (h_ - title_bar_h_ - 10) transform)
     tx_g_.add (TextTexture (x_ + padding) (y_ + padding + title_text_h) transform TEXT_TEXTURE_ALIGN_LEFT title title_font font_color)
     tx_g_.add content_tx_.tx_g_
 
@@ -108,7 +110,7 @@ class Button extends UiElement:
 
   text/string
   bg_rect_ := ?
-  txt_tex_/TextTexture
+  txt_tex_/TextureGroup
   enabled_color/int
   disabled_color/int
   enabled_ := true
@@ -125,7 +127,8 @@ class Button extends UiElement:
     else: 
       outline = (FilledRectangle BLACK (x - 1) (y - 1) (w_ + 2) (h_ + 2) transform)
       bg_rect_ = (FilledRectangle enabled_color x y w_ h_ transform)
-    txt_tex_ = (TextTexture (x + 5) (y + 5 + text_h) transform TEXT_TEXTURE_ALIGN_LEFT text font BLACK)
+    txt_tex_ = (MultiLineText (x + 5) (y + (h_/4) + text_h) text font BLACK transform 5 tracker).tx_g_
+    //(TextTexture (x + 5) (y + 5 + text_h) transform TEXT_TEXTURE_ALIGN_LEFT text font BLACK)
     super x y transform
 
     tx_g_.add outline
@@ -194,9 +197,10 @@ class Ui:
     display.add el.tx_g_
     els.add el
 
-  window x y w h title --rounded/bool?=false --content/string?="" --title_font/Font?=(Font.get "sans10") --font_color/int?=BLACK --padding/int?=2 --title_bg/int?=0xa6a6a6 --content_bg/int?=0xc4c4c4 -> ContentWindow:
+  window x y w h title --rounded/bool?=false --content/string?="" --content_font/Font?=(Font.get "sans10") --title_font/Font?=(Font.get "sans10") --font_color/int?=BLACK --padding/int?=2 --title_bg/int?=0xa6a6a6 --content_bg/int?=0xc4c4c4 -> ContentWindow:
     win := ContentWindow x y w h title content display
       --title_font=title_font
+      --content_font=content_font
       --font_color=font_color
       --padding=padding
       --title_bg=title_bg
@@ -232,6 +236,7 @@ main:
   // display_driver := load_driver WROOM_16_BIT_LANDSCAPE_SETTINGS
   // display := get_display display_driver
   sans_14 := Font [sans_14.ASCII]
+  sans_10 := Font [sans_10.ASCII, sans_10.LATIN_1_SUPPLEMENT]
   ui := Ui display
     --landscape
 
@@ -244,7 +249,23 @@ main:
     --title_bg = title_color
     --content_bg = bg_color
 
-  fortnite_stats_content := (ui.window 20 30 240 110 "Fortnite Stats" 
+  ui.window 20 35 130 115 "Time/Temp" 
+    --content = "21:57\n21°C"
+    --content_font = sans_10
+    --title_font = sans_14
+    --title_bg = title_color
+    --content_bg = content_color
+    --padding = 5
+    --rounded
+
+  ui.window 160 35 300 115 "Actions"
+    --title_font = sans_14
+    --title_bg = title_color
+    --content_bg = content_color
+    --padding = 5
+    --rounded
+
+  fortnite_stats_content := (ui.window 20 160 130 140 "Fortnite Stats" 
     --content = "Played: \nWins: \nKills: \nTop 25: "
     --title_font = sans_14
     --title_bg = title_color
@@ -252,7 +273,7 @@ main:
     --padding = 5
     --rounded)
 
-  ui.window 20 160 240 140 "Messages" 
+  ui.window 160 160 300 140 "Messages" 
     --content = "No new messages"
     --title_font = sans_14
     --title_bg = title_color
@@ -260,24 +281,17 @@ main:
     --padding = 5
     --rounded
   
-  ui.window 280 160 175 140 "Actions"
-    --title_font = sans_14
-    --title_bg = title_color
-    --content_bg = content_color
-    --padding = 5
-    --rounded
-  
-  send_btn := (ui.button 290 192 155 30 "Send Invite"
+  send_btn := (ui.button 170 65 80 70 "Send\nInvite"
     --font = sans_14
     --enabled_color = title_color
     --disabled_color = bg_color
     --rounded)
-  accept_btn := (ui.button 290 227 155 30 "Accept Invite"
+  accept_btn := (ui.button 270 65 80 70 "Accept\nInvite"
     --font = sans_14
     --enabled_color = title_color
     --disabled_color = bg_color
     --rounded)
-  reject_btn := (ui.button 290 262 155 30 "Reject Invite"
+  reject_btn := (ui.button 370 65 80 70 "Reject\nInvite"
     --font = sans_14
     --enabled_color = title_color
     --disabled_color = bg_color
