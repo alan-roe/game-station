@@ -168,6 +168,7 @@ class MainUi extends Ui:
     display_enabled_ = enable
     if enable:
       display_driver.backlight_on
+      display_timer = Time.now
     else: display_driver.backlight_off
 
   update coords:
@@ -253,21 +254,6 @@ main:
     ui.draw 
 
     sleep --ms=20
-  // weather_sub icon_texture temperature_texture 
-  // task:: clock_task time_texture
-  // task:: watch_touch
-  // sleep --ms=5000
-  // display.close
-  // touch_mutex.do:
-  //   gt911_release
-
-  // sleep --ms=5000
-  // mqtt_debug "sleeping..."
-  // mask :=0
-  // mask |= 1 << 21
-  // enable_external_wakeup mask false
-  // sleep --ms=100
-  // deep_sleep (Duration --s=10)
 
 mqtt_debug msg/string:
   mqtt_client.publish "esp32_debug" msg.to_byte_array
