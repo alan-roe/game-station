@@ -33,6 +33,7 @@ import .bmp
 import .bg_b
 import .fortnite
 import .ui
+import .weather
 
 // Search for icon names on https://materialdesignicons.com/
 // (hover over icons to get names).
@@ -75,7 +76,10 @@ class MainUi extends Ui:
   fortnite_stats/ContentWindow? := null
   messages/ContentWindow? := null
   weather_win/ContentWindow? := null
+  
   time_texture/TextTexture? := null
+  weather_icon/TextureGroup? := null
+
 
   load_elements:
     sans_14 := Font [sans_14.ASCII, sans_14.LATIN_1_SUPPLEMENT]
@@ -148,6 +152,18 @@ class MainUi extends Ui:
     
     now := (Time.now).local
     time_texture = display.text (ctx.with --color=BLACK --font=sans_14) 410 18 "$now.h:$(%02d now.m)"
+
+    suns_tex := (IndexedPixmapTexture 60 85 49 49 ctx.transform SUN WEATHER_PALETTE)
+    // cloud_tex := (IndexedPixmapTexture 60 85 59 37 ctx.transform CLOUD WEATHER_PALETTE)
+    // raindrops_tex := (IndexedPixmapTexture 60 85 23 19 ctx.transform RAINDROPS WEATHER_PALETTE)
+    // lightning_tex := (IndexedPixmapTexture 60 85 14 23 ctx.transform LIGHTNING WEATHER_PALETTE)
+    // fog_tex := (IndexedPixmapTexture 60 85 54 33 ctx.transform FOG WEATHER_PALETTE)
+    // snow_tex := (IndexedPixmapTexture 60 85 38 41 ctx.transform SNOW WEATHER_PALETTE)
+    weather_icon = TextureGroup
+    Weather.set ctx.transform display
+
+    Weather.insert "01d" weather_icon
+    display.add weather_icon 
   
   constructor:
     display_driver = load_driver WROOM_16_BIT_LANDSCAPE_SETTINGS
@@ -217,7 +233,7 @@ main:
 
   ui := MainUi
 
-  weather_sub ui.weather_win
+  weather_sub ui.weather_win ui.weather_icon
   msg_sub ui.messages
 
   task:: clock_task ui.time_texture
@@ -331,14 +347,18 @@ msg_sub msg_texture/ContentWindow:
     msg_texture.content = new_msg
 
 
-weather_sub weather_win/ContentWindow: //weather_icon/IconTexture :
+weather_sub weather_win/ContentWindow weather_icon/TextureGroup: //weather_icon/IconTexture :
   mqtt_client.subscribe "openweather/main/temp":: | topic/string payload/ByteArray |
     temp := float.parse payload.to_string
     weather_win.content = "$(%.1f temp)°C"
-  // mqtt_client.subscribe "openweather/weather/0/icon" :: | topic/string payload/ByteArray |
-  //   code := int.parse payload.to_string[0..2]
-  //   if code > 12: code = 13
-  //     weather_icon.icon = WMO_4501_ICONS[code]
+  mqtt_client.subscribe "openweather/weather/0/icon" :: | topic/string payload/ByteArray |
+    code := payload.to_string[0..3]
+    
+    weather_icon.remove_all
+    Weather.insert code weather_icon
+    weather_icon.invalidate
+    mqtt_debug "adding $code to texgroup"
+    
 clock_task time_texture/TextTexture:
   while true:
     now := (Time.now).local
