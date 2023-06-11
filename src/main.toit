@@ -16,7 +16,9 @@ import http.headers
 import certificate_roots
 import esp32 
 import esp32 show enable_external_wakeup deep_sleep wakeup_cause enable_touchpad_wakeup reset_reason
-
+import log show Logger set_default debug
+import log.target show *
+import log.level show *
 import pictogrammers_icons.size_20 as icons
 
 import pixel_display.true_color show *
@@ -59,27 +61,24 @@ mqtt_client := mqtt_client_connect
 
 new_msg_alert := false
 
-msg_texture := ?
-icon_texture := ?
-temperature_texture := ?
-time_texture := ?
-
 class MainUi extends Ui:
   display_driver/ColorTft
-  touchscreen/TouchScreen
   display_timer := Time.now
 
   // Buttons
-  send_btn := 0
-  accept_btn := 0
-  reject_btn := 0
+  send_btn/Button? := null
+  accept_btn/Button? := null
+  reject_btn/Button? := null
+  screen_btn/Button? := null
 
   // Windows
-  fortnite_stats := 0
-  messages := 0
+  fortnite_stats/ContentWindow? := null
+  messages/ContentWindow? := null
+  weather_win/ContentWindow? := null
+  time_texture/TextTexture? := null
 
   load_elements:
-    sans_14 := Font [sans_14.ASCII]
+    sans_14 := Font [sans_14.ASCII, sans_14.LATIN_1_SUPPLEMENT]
     sans_10 := Font [sans_10.ASCII, sans_10.LATIN_1_SUPPLEMENT]
     
     bg_color := 0xC5C9FF
@@ -91,14 +90,14 @@ class MainUi extends Ui:
       --padding = 5
       --title_bg = title_color
       --content_bg = bg_color
-    display.icon (ctx.with --color=BLACK) 460 20 icons.MONITOR
 
-    window 20 35 130 115 "Time/Temp" 
-      --content = "21:57\n21°C"
-      --content_font = sans_10
+    weather_win = window 20 35 130 115 "Weather" 
+      --content = "21°C"
+      --content_font = sans_14
       --title_font = sans_14
       --title_bg = title_color
       --content_bg = content_color
+      --x_padding = 30
       --padding = 5
       --rounded
 
@@ -125,30 +124,42 @@ class MainUi extends Ui:
       --padding = 5
       --rounded
     
-    send_btn = (button 170 65 80 70 "Send\nInvite"
+    send_btn = (button 170 65 80 70 
+      --text = "Send\nInvite"
       --font = sans_14
       --enabled_color = title_color
       --disabled_color = bg_color
       --rounded)
-    accept_btn = (button 270 65 80 70 "Accept\nInvite"
+    accept_btn = (button 270 65 80 70 
+      --text = "Accept\nInvite"
       --font = sans_14
       --enabled_color = title_color
       --disabled_color = bg_color
       --rounded)
-    reject_btn = (button 370 65 80 70 "Reject\nInvite"
+    reject_btn = (button 370 65 80 70 
+      --text = "Reject\nInvite"
       --font = sans_14
       --enabled_color = title_color
       --disabled_color = bg_color
       --rounded)
 
+    screen_btn = (button 460 2 20 20 
+      --icon=icons.MONITOR)
+    
+    now := (Time.now).local
+    time_texture = display.text (ctx.with --color=BLACK --font=sans_14) 410 18 "$now.h:$(%02d now.m)"
   
-  constructor .touchscreen/TouchScreen:
+  constructor:
     display_driver = load_driver WROOM_16_BIT_LANDSCAPE_SETTINGS
     d := get_display display_driver
     
     super d --landscape
-    
+
     load_elements
+
+  buttons_enabled= enable/bool:
+    btns.do:
+      it.enabled = enable
 
   display_enabled= enable/bool:
     if display_enabled_ == enable:
@@ -159,45 +170,89 @@ class MainUi extends Ui:
       display_driver.backlight_on
     else: display_driver.backlight_off
 
-  update:
-    coords := touchscreen.get_coords
+  update coords:
     if display_enabled_ and display_timer.to_now.in_m > 5:
+      mqtt_debug "disabling display: timeout"
       display_enabled = false
+      return
 
     if coords.s:
+      mqtt_debug "Detected touch: $coords.x $coords.y"
       display_timer = Time.now       
-      display_enabled = true
+      if not display_enabled_:
+        display_enabled = true
+        return
 
-    update coords
+    if not display_enabled_: return
+
+    super coords
+
+class MqttLogger implements Target:
+  log level/int message/string names/List? keys/List? values/List? -> none:
+    mqtt_debug "Level: $level  Message: $message"
+    return
 
 main:
+  // set_default (Logger DEBUG_LEVEL MqttLogger)
+  while true:
+    try: 
+      net.open
+      break
+    finally:
   if wakeup_cause == esp32.WAKEUP_EXT1:
-    mqtt_debug "Woken up from external pin"
+    // debug "Woken up from external pin"
     // Chances are that when we just woke up because a pin went high.
     // Give the pin a chance to go low again.
     sleep --ms=1_000
   else:
-    mqtt_debug "Woken up for other reasons: $esp32.wakeup_cause"
-  
+    // debug "Woken up for other reasons: $esp32.wakeup_cause"
+  // sleep --ms=8_000
   wpin := reset_reason
-  mqtt_debug "reset reason: $(%d wpin)"
+  // debug "reset reason: $(%d wpin)"
 
-  ui := MainUi gt911_int
+  gt911_int
 
-  mqtt_debug "started program"
+  sleep --ms=50
+
+  ui := MainUi
+
+  weather_sub ui.weather_win
+  msg_sub ui.messages
+
+  task:: clock_task ui.time_texture
+  task:: fortnite_task ui.fortnite_stats
+
+  ui.draw
+
+  button_timer := Time.now
 
   while true:
-    ui.update
-
+    if not ui.display_enabled:
+      sleep --ms=1000
+      if get_coords.s:
+        sleep --ms=1000
+        if get_coords.s:
+          ui.display_enabled = true
+          ui.draw
+          ui.buttons_enabled = false
+          button_timer = Time.now
+      continue
+    
+    ui.update get_coords
     if ui.send_btn.released or ui.accept_btn.released:
       play_request
     else if ui.reject_btn.released:
       play_deny
 
-    ui.draw --speed=100
+    if not ui.send_btn.enabled_ and button_timer.to_now.in_s > 2:
+      ui.buttons_enabled = true
+
+    if ui.screen_btn.released:
+      ui.display_enabled = false
+
+    ui.draw 
 
     sleep --ms=20
-  // msg_sub msg_texture
   // weather_sub icon_texture temperature_texture 
   // task:: clock_task time_texture
   // task:: watch_touch
@@ -276,35 +331,39 @@ play_request:
 play_deny:
   mqtt_client.publish "gstation_from" "fr".to_byte_array
 
-// msg_sub msg_texture/TextTexture:
-//   mqtt_client.subscribe "gstation_to":: | topic/string payload/ByteArray |
-//     now := (Time.now).local
-//     msg := payload.to_string
-//     display_mutex.do:
-//       task:: new_message_alert_led
-//       msg_texture.text = "$now.h:$(%02d now.m): $msg"
-//       display.draw
+msg_sub msg_texture/ContentWindow:
+  msg_queue := []
+  mqtt_client.subscribe "gstation_to":: | topic/string payload/ByteArray |
+    now := (Time.now).local
+    msg := payload.to_string
+    if msg_queue.size > 5:
+      msg_queue.remove msg_queue.first
+    msg_queue.add "$now.h:$(%02d now.m) <Alan> $msg"
+    new_msg := ""
+    msg_queue.do: new_msg = new_msg + "$it \n" 
+    //task:: new_message_alert_led
+    msg_texture.content = new_msg
 
-// weather_sub weather_icon/IconTexture temperature_texture/TextTexture:
-//   mqtt_client.subscribe "openweather/main/temp":: | topic/string payload/ByteArray |
-//     temp := float.parse payload.to_string
-//     display_mutex.do:
-//       temperature_texture.text = "$(%.1f temp)°C"
-//       display.draw
-//   mqtt_client.subscribe "openweather/weather/0/icon" :: | topic/string payload/ByteArray |
-//     code := int.parse payload.to_string[0..2]
-//     if code > 12: code = 13
-//     display_mutex.do:
-//       weather_icon.icon = WMO_4501_ICONS[code]
-//       display.draw
 
-// clock_task time_texture:
-//   while true:
-//     now := (Time.now).local
-//     display_mutex.do:
-//       // H:MM or HH:MM depending on time of day.
-//       time_texture.text = "$now.h:$(%02d now.m)"
-//       display.draw
-//     // Sleep this task until the next whole minute.
-//     sleep_time := 60 - now.s
-//     sleep --ms=sleep_time*1000
+weather_sub weather_win/ContentWindow: //weather_icon/IconTexture :
+  mqtt_client.subscribe "openweather/main/temp":: | topic/string payload/ByteArray |
+    temp := float.parse payload.to_string
+    weather_win.content = "$(%.1f temp)°C"
+  // mqtt_client.subscribe "openweather/weather/0/icon" :: | topic/string payload/ByteArray |
+  //   code := int.parse payload.to_string[0..2]
+  //   if code > 12: code = 13
+  //     weather_icon.icon = WMO_4501_ICONS[code]
+clock_task time_texture/TextTexture:
+  while true:
+    now := (Time.now).local
+    time_texture.text = "$now.h:$(%02d now.m)"
+
+    // Sleep this task until the next whole minute.
+    sleep_time := 60 - now.s
+    sleep --ms=sleep_time*1000
+
+fortnite_task fortnite_window/ContentWindow:
+  while true:
+    new_stats := (FortniteStats FORTNITE_ACC).stringify
+    fortnite_window.content = new_stats
+    sleep --ms=60_000

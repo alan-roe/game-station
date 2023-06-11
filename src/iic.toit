@@ -240,7 +240,7 @@ gt911_release:
   IIC_RST.close
 
 
-gt911_int -> TouchScreen:
+gt911_int:
   buf := ByteArray 4;
   CFG_TBL := ByteArray 184;
   
@@ -272,8 +272,6 @@ gt911_int -> TouchScreen:
   buf[0] = 0x00;
   GT911_WR_Reg GT_CTRL_REG buf 1
 
-  return TouchScreen
-
 class Coordinate:
   // x: X axis coordinate.
   // y: Y axis coordinate.
@@ -286,8 +284,7 @@ class Coordinate:
   // arguments that are written directly to a typed field.
   constructor .x .y .s:
 
-class TouchScreen:
-  get_coords -> Coordinate:
-    GT911_Scan
+get_coords -> Coordinate:
+  GT911_Scan
 
-    return Coordinate (480 - Dev_Now.Y[0]) (Dev_Now.X[0]) touched
+  return Coordinate (480 - Dev_Now.Y[0]) (Dev_Now.X[0]) touched
