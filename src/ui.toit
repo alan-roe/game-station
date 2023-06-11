@@ -1,11 +1,11 @@
 import font show *
 import font_x11_adobe.sans_14
-import font_x11_adobe.sans_10
 import pixel_display.true_color show *
 import pixel_display.texture show *
 import pixel_display show *
 import monitor show Mutex
 import bitmap show *
+import color_tft show *
 
 import .get_display
 import .iic
@@ -148,9 +148,11 @@ class Button extends UiElement:
   pressed= pressed/bool:
     if pressed == pressed_ or not enabled_:
       return
+    mqtt_debug "in pressed"
     last_pressed_ = pressed_
     pressed_ = pressed
     if pressed_:
+      mqtt_debug "about to change rect color"
       bg_rect_.color = disabled_color
     else: bg_rect_.color = enabled_color
 
@@ -174,8 +176,9 @@ class Button extends UiElement:
     return ((x >= x_) and (x <= (x_ + w_)) and (y >= y_) and (y <= (y_ + h_)))
 
 
-class Ui:
+abstract class Ui:
   display /TrueColorPixelDisplay
+  display_enabled_ := true
   ctx /GraphicsContext
   els := []
   btns := []
@@ -224,81 +227,22 @@ class Ui:
 
     return btn
 
+  draw --speed/int?=50:
+    if display_enabled_:
+      display.draw --speed=speed
+
   update coords/Coordinate:
     btns.do:
       it.update coords
-      if it.released:
-        mqtt_debug "$it.text button released"
-
-display_mutex := Mutex
+      // if it.released:
+      //   mqtt_debug "$it.text button released"
 
 main:
-  // display_driver := load_driver WROOM_16_BIT_LANDSCAPE_SETTINGS
-  // display := get_display display_driver
-  sans_14 := Font [sans_14.ASCII]
-  sans_10 := Font [sans_10.ASCII, sans_10.LATIN_1_SUPPLEMENT]
-  ui := Ui display
-    --landscape
+  ui := MainUi TouchScreen
 
-  bg_color := 0xC5C9FF
-  content_color := 0xFDFAE6
-  title_color := 0xA2C7E8
-  ui.window 0 0 480 320 "Jackson's Game Station"
-    --title_font = sans_14
-    --padding = 5
-    --title_bg = title_color
-    --content_bg = bg_color
-
-  ui.window 20 35 130 115 "Time/Temp" 
-    --content = "21:57\n21°C"
-    --content_font = sans_10
-    --title_font = sans_14
-    --title_bg = title_color
-    --content_bg = content_color
-    --padding = 5
-    --rounded
-
-  ui.window 160 35 300 115 "Actions"
-    --title_font = sans_14
-    --title_bg = title_color
-    --content_bg = content_color
-    --padding = 5
-    --rounded
-
-  fortnite_stats_content := (ui.window 20 160 130 140 "Fortnite Stats" 
-    --content = "Played: \nWins: \nKills: \nTop 25: "
-    --title_font = sans_14
-    --title_bg = title_color
-    --content_bg = content_color
-    --padding = 5
-    --rounded)
-
-  ui.window 160 160 300 140 "Messages" 
-    --content = "No new messages"
-    --title_font = sans_14
-    --title_bg = title_color
-    --content_bg = content_color
-    --padding = 5
-    --rounded
-  
-  send_btn := (ui.button 170 65 80 70 "Send\nInvite"
-    --font = sans_14
-    --enabled_color = title_color
-    --disabled_color = bg_color
-    --rounded)
-  accept_btn := (ui.button 270 65 80 70 "Accept\nInvite"
-    --font = sans_14
-    --enabled_color = title_color
-    --disabled_color = bg_color
-    --rounded)
-  reject_btn := (ui.button 370 65 80 70 "Reject\nInvite"
-    --font = sans_14
-    --enabled_color = title_color
-    --disabled_color = bg_color
-    --rounded)
   sleep --ms=100
 
-  display.draw --speed=100
+  ui.draw --speed=100
 
   gt911_int
 
@@ -306,8 +250,9 @@ main:
   while true:
     sleep --ms=20
     wins++
-    fortnite_stats_content.content = "Played: 203\nWins: $wins\nKills:  400\nTop 25: 60"
-
-    ui.update get_coords
-    display.draw --speed=100
+    ui.fortnite_stats.content = "Played: 203\nWins: $wins\nKills:  400\nTop 25: 60"
+    
+    ui.update
+    
+    ui.draw --speed=100
     
