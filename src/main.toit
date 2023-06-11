@@ -85,9 +85,9 @@ class MainUi extends Ui:
     sans_14 := Font [sans_14.ASCII, sans_14.LATIN_1_SUPPLEMENT]
     sans_10 := Font [sans_10.ASCII, sans_10.LATIN_1_SUPPLEMENT]
     
-    bg_color := 0xC5C9FF
-    content_color := 0xFDFAE6
-    title_color := 0xA2C7E8
+    bg_color := 0x5FCEEA
+    content_color := 0xFFFFFF
+    title_color := 0x1B90DD
     
     window 0 0 480 320 "Jackson's Game Station"
       --title_font = sans_14
@@ -153,12 +153,6 @@ class MainUi extends Ui:
     now := (Time.now).local
     time_texture = display.text (ctx.with --color=BLACK --font=sans_14) 410 18 "$now.h:$(%02d now.m)"
 
-    suns_tex := (IndexedPixmapTexture 60 85 49 49 ctx.transform SUN WEATHER_PALETTE)
-    // cloud_tex := (IndexedPixmapTexture 60 85 59 37 ctx.transform CLOUD WEATHER_PALETTE)
-    // raindrops_tex := (IndexedPixmapTexture 60 85 23 19 ctx.transform RAINDROPS WEATHER_PALETTE)
-    // lightning_tex := (IndexedPixmapTexture 60 85 14 23 ctx.transform LIGHTNING WEATHER_PALETTE)
-    // fog_tex := (IndexedPixmapTexture 60 85 54 33 ctx.transform FOG WEATHER_PALETTE)
-    // snow_tex := (IndexedPixmapTexture 60 85 38 41 ctx.transform SNOW WEATHER_PALETTE)
     weather_icon = TextureGroup
     Weather.set ctx.transform display
 
@@ -255,7 +249,10 @@ main:
           button_timer = Time.now
       continue
     
-    ui.update get_coords
+    coords := get_coords
+    ui.update coords
+    if coords.s and new_msg_alert:
+      new_msg_alert = false
     if ui.send_btn.released or ui.accept_btn.released:
       play_request
     else if ui.reject_btn.released:
@@ -282,42 +279,6 @@ new_message_alert_led:
     Led.off
     sleep --ms=1000
 
-// watch_touch:
-//   while true:
-//     coord := get_coords
-//     x := (480 - coord.y)
-//     y := coord.x
-//     if coord.s:
-//       mqtt_debug "touched, x: $(%d x), y: $(%d y)"
-//       if x >= 109 and x <= 189 and y >= 239 and y <= 318:
-//         play_request
-//         new_msg_alert = false
-//         Led.green
-//         sleep --ms=1000
-//         Led.off
-//       else if x >= 292 and x <= 368 and y >= 237 and y <= 314:
-//         play_deny
-//         new_msg_alert = false
-//         Led.red
-//         sleep --ms=1000
-//         Led.off
-//       else: 
-//         sleep --ms=1000
-//         display_mutex.do:
-//           if display_enabled:
-//             mqtt_debug "turning off backlight"
-//             display_enabled = false
-//             display_driver.backlight_off
-//           else if not display_enabled:
-//             mqtt_debug "turning on backlight"
-//             display_enabled = true
-//             display_driver.backlight_on
-//             sleep --ms=20
-//             //display.draw
-//         mqtt_debug (FortniteStats FORTNITE_ACC).stringify
-//       get_coords
-//     sleep --ms=20
-
 mqtt_client_connect -> mqtt.Client:
   network := net.open
   transport := mqtt.TcpTransport network --host=MQTT_HOST
@@ -343,7 +304,7 @@ msg_sub msg_texture/ContentWindow:
     msg_queue.add "$now.h:$(%02d now.m) <Alan> $msg"
     new_msg := ""
     msg_queue.do: new_msg = new_msg + "$it \n" 
-    //task:: new_message_alert_led
+    task:: new_message_alert_led
     msg_texture.content = new_msg
 
 
@@ -353,11 +314,9 @@ weather_sub weather_win/ContentWindow weather_icon/TextureGroup: //weather_icon/
     weather_win.content = "$(%.1f temp)°C"
   mqtt_client.subscribe "openweather/weather/0/icon" :: | topic/string payload/ByteArray |
     code := payload.to_string[0..3]
-    
     weather_icon.remove_all
     Weather.insert code weather_icon
     weather_icon.invalidate
-    mqtt_debug "adding $code to texgroup"
     
 clock_task time_texture/TextTexture:
   while true:
@@ -369,7 +328,9 @@ clock_task time_texture/TextTexture:
     sleep --ms=sleep_time*1000
 
 fortnite_task fortnite_window/ContentWindow:
+  stats := FortniteStats FORTNITE_ACC
   while true:
-    new_stats := (FortniteStats FORTNITE_ACC).stringify
+    new_stats := stats.stringify
     fortnite_window.content = new_stats
     sleep --ms=60_000
+    stats.update
