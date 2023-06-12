@@ -21,8 +21,11 @@ import log.target show *
 import log.level show *
 import pictogrammers_icons.size_20 as icons
 
+import pixel_display show *
 import pixel_display.true_color show *
 import pixel_display.texture show *
+import png_display show *
+import host.file show *
 
 import .env
 import .get_display  // Import file in current project, see above.
@@ -36,32 +39,11 @@ import .ui
 import .weather
 import .mqtt
 
-// Search for icon names on https://materialdesignicons.com/
-// (hover over icons to get names).
-WMO_4501_ICONS ::= [
-  icons.WEATHER_NIGHT,
-  icons.WEATHER_SUNNY, // 1
-  icons.WEATHER_PARTLY_CLOUDY, // 2
-  icons.WEATHER_CLOUDY, // 3
-  icons.WEATHER_CLOUDY, // 4
-  icons.WEATHER_NIGHT,
-  icons.WEATHER_NIGHT,
-  icons.WEATHER_NIGHT,
-  icons.WEATHER_NIGHT,
-  icons.WEATHER_PARTLY_RAINY, // 9
-  icons.WEATHER_RAINY,
-  icons.WEATHER_LIGHTNING,
-  icons.WEATHER_NIGHT,
-  icons.WEATHER_SNOWY, // 12
-  icons.WEATHER_FOG,
-]
-
+start_time := ""
+temp_bool := false
 new_msg_alert := false
 
 class MainUi extends Ui:
-  display_driver/ColorTft
-  display_timer := Time.now
-
   // Buttons
   send_btn/Button? := null
   accept_btn/Button? := null
@@ -155,11 +137,8 @@ class MainUi extends Ui:
     Weather.insert "01d" weather_icon
     display.add weather_icon 
   
-  constructor:
-    display_driver = load_driver WROOM_16_BIT_LANDSCAPE_SETTINGS
-    d := get_display display_driver
-    
-    super d --landscape
+  constructor display display_driver:  
+    super display display_driver --landscape
 
     load_elements
 
@@ -172,83 +151,143 @@ class MainUi extends Ui:
       return
 
     display_enabled_ = enable
-    if enable:
-      display_driver.backlight_on
-      display_timer = Time.now
-    else: display_driver.backlight_off
 
   update coords:
-    if display_enabled_ and display_timer.to_now.in_m > 5:
-      mqtt_debug "disabling display: timeout"
-      display_enabled = false
-      return
-
     if coords.s:
       mqtt_debug "Detected touch: $coords.x $coords.y"
-      display_timer = Time.now       
-      if not display_enabled_:
-        display_enabled = true
-        return
 
     if not display_enabled_: return
 
     super coords
 
+stats_list := List 11
+/**
+0. New-space (small collection) GC count for the process
+1. Allocated memory on the Toit heap of the process
+2. Reserved memory on the Toit heap of the process
+3. Process message count
+4. Bytes allocated in object heap
+5. Group ID
+6. Process ID
+7. Free memory in the system
+8. Largest free area in the system
+9. Full GC count for the process (including compacting GCs)
+10. Full compacting GC count for the process
+*/
+system_stats -> string:
+  process_stats stats_list
+  ret := "Start Time: $start_time\n"
+  ret += "New-space (small collection) GC count: $stats_list[0]\n"
+  ret += "Allocated memory on the Toit heap:     $stats_list[1]\n"
+  ret += "Reserved memory on the Toit heap:      $stats_list[2]\n"
+  ret += "Process message count:                 $stats_list[3]\n"
+  ret += "Bytes allocated in object heap:        $stats_list[4]\n"
+  ret += "Group ID:                              $stats_list[5]\n"
+  ret += "Process ID:                            $stats_list[6]\n"
+  ret += "Free memory in the system:             $stats_list[7]\n"
+  ret += "Largest free area in the system:       $stats_list[8]\n"
+  ret += "Full GC count for the process:         $stats_list[9]\n"
+  ret += "Full compacting GC count:              $stats_list[10]"
+  return ret
+
+// TODO Implement this as the PngDriver write function or whatever
+/**
+Writes a PNG file to the given filename.
+Only light compression is used, basically just run-length encoding
+  of equal pixels.  This is fast and reduces memory use.
+*/
+write_file filename/string driver/PngDriver_ display/PixelDisplay:
+  write_to
+      Stream.for_write filename
+      driver
+      display
+
 main:
-  while true:
-    try:
-      n := net.open
-      n.close
-      if n.is_closed:
-        break
-    finally:
-      sleep --ms=500
+  mqtt_debug system_stats
+  time := Time.now.local
+  start_time = "$time.day/$time.month/$time.year $time.h:$(%02d time.m):$(%02d time.s)"
   
-  ui := MainUi
-  
+  display_driver := load_driver WROOM_16_BIT_LANDSCAPE_SETTINGS
+  display := get_display display_driver
+  // display_driver := TrueColorPngDriver 480 320
+  // display := TrueColorPixelDisplay display_driver
+  ui := MainUi display display_driver
+  sleep --ms=50
   clock ui.time_texture
-
-  mqtt_service.fortnite ui.fortnite_stats
-  mqtt_service.weather ui.weather_win ui.weather_icon
-  mqtt_service.messages ui.messages
-
+  sleep --ms=50
+  FortniteStats ui.fortnite_stats
+  sleep --ms=50
+  weather_updater ui.weather_win ui.weather_icon
+  sleep --ms=50
+  message_updater ui.messages
   sleep --ms=500
   ui.draw
-
-  button_timer := Time.now
+  sleep --ms=50
   gt911_int
+  sleep --ms=50
 
+  stats_timer := Time.now
+  display_timer := Time.now
+  button_timer := Time.now
 
   while true:
-    if not ui.display_enabled:
-      sleep --ms=1000
-      if get_coords.s:
-        sleep --ms=1000
+    exception := catch:
+      // Send stats to server
+      if stats_timer.to_now.in_s > 30:
+        if temp_bool:
+          mqtt_debug "running while screen off"
+        mqtt_debug system_stats
+        stats_timer = Time.now
+      
+      // If the display is enabled
+      if ui.display_enabled:
+        coords := get_coords
+
+        if coords.s:
+          display_timer = Time.now
+          if new_msg_alert:
+            new_msg_alert = false 
+
+        ui.update coords
+        ui.draw 
+
+        // Disable display if 5 minutes untouched
+        if display_timer.to_now.in_m > 5:
+          mqtt_debug "disabling display: timeout"
+          ui.display_enabled = false
+          display_driver.backlight_off
+          temp_bool = true
+
+        // Check buttons
+        if ui.send_btn.released or ui.accept_btn.released:
+          play_request
+        else if ui.reject_btn.released:
+          play_deny
+
+        if not ui.send_btn.enabled and button_timer.to_now.in_s > 2:
+          ui.buttons_enabled = true
+
+        if ui.screen_btn.released:
+          ui.display_enabled = false
+          display_driver.backlight_off
+          temp_bool = true
+
+        sleep --ms=20
+      else:
+        // Re-enable on touch
         if get_coords.s:
           ui.display_enabled = true
+          display_driver.backlight_on
+          display_timer = Time.now
           ui.draw
+
+          // We disable the buttons for a second
           ui.buttons_enabled = false
           button_timer = Time.now
-      continue
-    
-    coords := get_coords
-    ui.update coords
-    if coords.s and new_msg_alert:
-      new_msg_alert = false
-    if ui.send_btn.released or ui.accept_btn.released:
-      play_request
-    else if ui.reject_btn.released:
-      play_deny
-
-    if not ui.send_btn.enabled_ and button_timer.to_now.in_s > 2:
-      ui.buttons_enabled = true
-
-    if ui.screen_btn.released:
-      ui.display_enabled = false
-
-    ui.draw 
-
-    sleep --ms=20
+        // Sleep a bit longer when the display is off
+        sleep --ms=1000
+    if exception:
+      mqtt_debug "MAIN EXCEPTION: $exception"
 
 new_message_alert_led:
   new_msg_alert = true

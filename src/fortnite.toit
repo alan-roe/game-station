@@ -1,11 +1,8 @@
-import http
-import http.headers
-import net
 import encoding.json
-import certificate_roots
 
 import .env
 import .mqtt
+import .ui
 
 class FortniteStats:
   static HOST ::= "fortniteapi.io"
@@ -15,36 +12,24 @@ class FortniteStats:
   wins/int := 0
   played/int := 0
   top25/int := 0
-  id/string
+  fortnite_window/ContentWindow
   
-  constructor .id/string:
-    update
-  
-  update:
-    data := {}
-    exception := catch:
-      client := http.Client.tls (net.open) --root_certificates=[certificate_roots.BALTIMORE_CYBERTRUST_ROOT]
-      header := headers.Headers
-      header.set "Authorization" FORTNITE_API_AUTH
-      response := client.get HOST (PATH + id)
-        --headers=header
-      data = json.decode_stream response.body
-      client.close
-    
-    if exception:
-      print "Failed to get fortnite stats $exception"
-      return
-  
-    level = (data.get "account").get "level"
-    global := (data.get "global_stats")
-    duo := (global.get "duo")
-    solo := (global.get "solo")
+  constructor .fortnite_window/ContentWindow:
+    mqtt_service.subscribe "fortnite/stats" :: | topic/string payload/ByteArray |
+      data := json.decode payload
+      if (data.get "result"):
+        level = (data.get "account").get "level"
+        global := (data.get "global_stats")
+        duo := (global.get "duo")
+        solo := (global.get "solo")
 
-    kills = (solo.get "kills") + (duo.get "kills")
-    wins = (solo.get "placetop1") + (duo.get "placetop1")
-    played = (solo.get "matchesplayed") + (duo.get "matchesplayed")
-    top25 = (get_top25_ solo) + (get_top25_ duo)
+        kills = (solo.get "kills") + (duo.get "kills")
+        wins = (solo.get "placetop1") + (duo.get "placetop1")
+        played = (solo.get "matchesplayed") + (duo.get "matchesplayed")
+        top25 = (get_top25_ solo) + (get_top25_ duo)
 
+      fortnite_window.content = stringify
+  
   stringify -> string:
     return "Level: $level\nPlayed: $played\nWins: $wins\nKills: $kills\nTop 25: $top25"
 

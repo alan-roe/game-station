@@ -1,4 +1,7 @@
 import gpio
+import log
+
+import .mqtt
 
 IIC_SCL ::= gpio.Pin 32
 IIC_SDA ::= gpio.Pin 33
@@ -32,9 +35,9 @@ class GT911_Dev:
   TouchCount := 0
 
   Touchkeytrackid := ByteArray CT_MAX_TOUCH
-  X := List CT_MAX_TOUCH
-  Y := List CT_MAX_TOUCH
-  S := List CT_MAX_TOUCH
+  X := List CT_MAX_TOUCH 0
+  Y := List CT_MAX_TOUCH 0
+  S := List CT_MAX_TOUCH 0
 
 Dev_Now := GT911_Dev
 Dev_Backup := GT911_Dev
@@ -167,53 +170,53 @@ GT911_Send_Cfg mode/int -> int:
   GT911_WR_Reg GT_CHECK_REG buf 2
   return 0
 
+scan_buf_ := ByteArray 41
+Clearbuf_ := 0
 GT911_Scan:
-  buf := ByteArray 41
-  Clearbuf := 0
   Dev_Now.Touch = 0;
-  buf[0] = (GT911_RD_Reg GT911_READ_XY_REG 1)[0]
+  scan_buf_[0] = (GT911_RD_Reg GT911_READ_XY_REG 1)[0]
 
-  if (buf[0] & 0x80) == 0x00:
+  if (scan_buf_[0] & 0x80) == 0x00:
     touched = false
-    GT911_WR_Reg GT911_READ_XY_REG #[Clearbuf] 1
-    print "No touch\r\n"
+    GT911_WR_Reg GT911_READ_XY_REG #[Clearbuf_] 1
+    log.default.info "No touch\r\n"
     sleep --ms=10
   else:
     touched = true;
-    Dev_Now.TouchpointFlag = buf[0];
-    Dev_Now.TouchCount = buf[0] & 0x0f;
+    Dev_Now.TouchpointFlag = scan_buf_[0];
+    Dev_Now.TouchCount = scan_buf_[0] & 0x0f;
     if Dev_Now.TouchCount > 5:
       touched = false
-      GT911_WR_Reg GT911_READ_XY_REG #[Clearbuf] 1
-      print "Dev_Now.TouchCount > 5\r\n"
+      GT911_WR_Reg GT911_READ_XY_REG #[Clearbuf_] 1
+      log.default.info "Dev_Now.TouchCount > 5\r\n"
       return
-    buf.replace 1 (GT911_RD_Reg (GT911_READ_XY_REG + 1) (Dev_Now.TouchCount * 8)) 0 (Dev_Now.TouchCount * 8) 
-    GT911_WR_Reg GT911_READ_XY_REG #[Clearbuf] 1
+    scan_buf_.replace 1 (GT911_RD_Reg (GT911_READ_XY_REG + 1) (Dev_Now.TouchCount * 8)) 0 (Dev_Now.TouchCount * 8) 
+    GT911_WR_Reg GT911_READ_XY_REG #[Clearbuf_] 1
 
-    Dev_Now.Touchkeytrackid[0] = buf[1];
-    Dev_Now.X[0] = (buf[3] << 8) + buf[2];
-    Dev_Now.Y[0] = (buf[5] << 8) + buf[4];
-    Dev_Now.S[0] = (buf[7] << 8) + buf[6];
+    Dev_Now.Touchkeytrackid[0] = scan_buf_[1];
+    Dev_Now.X[0] = (scan_buf_[3] << 8) + scan_buf_[2];
+    Dev_Now.Y[0] = (scan_buf_[5] << 8) + scan_buf_[4];
+    Dev_Now.S[0] = (scan_buf_[7] << 8) + scan_buf_[6];
 
-    Dev_Now.Touchkeytrackid[1] = buf[9];
-    Dev_Now.X[1] = (buf[11] << 8) + buf[10];
-    Dev_Now.Y[1] = (buf[13] << 8) + buf[12];
-    Dev_Now.S[1] = (buf[15] << 8) + buf[14];
+    Dev_Now.Touchkeytrackid[1] = scan_buf_[9];
+    Dev_Now.X[1] = (scan_buf_[11] << 8) + scan_buf_[10];
+    Dev_Now.Y[1] = (scan_buf_[13] << 8) + scan_buf_[12];
+    Dev_Now.S[1] = (scan_buf_[15] << 8) + scan_buf_[14];
 
-    Dev_Now.Touchkeytrackid[2] = buf[17];
-    Dev_Now.X[2] = (buf[19] << 8) + buf[18];
-    Dev_Now.Y[2] = (buf[21] << 8) + buf[20];
-    Dev_Now.S[2] = (buf[23] << 8) + buf[22];
+    Dev_Now.Touchkeytrackid[2] = scan_buf_[17];
+    Dev_Now.X[2] = (scan_buf_[19] << 8) + scan_buf_[18];
+    Dev_Now.Y[2] = (scan_buf_[21] << 8) + scan_buf_[20];
+    Dev_Now.S[2] = (scan_buf_[23] << 8) + scan_buf_[22];
 
-    Dev_Now.Touchkeytrackid[3] = buf[25];
-    Dev_Now.X[3] = (buf[27] << 8) + buf[26];
-    Dev_Now.Y[3] = (buf[29] << 8) + buf[28];
-    Dev_Now.S[3] = (buf[31] << 8) + buf[30];
+    Dev_Now.Touchkeytrackid[3] = scan_buf_[25];
+    Dev_Now.X[3] = (scan_buf_[27] << 8) + scan_buf_[26];
+    Dev_Now.Y[3] = (scan_buf_[29] << 8) + scan_buf_[28];
+    Dev_Now.S[3] = (scan_buf_[31] << 8) + scan_buf_[30];
 
-    Dev_Now.Touchkeytrackid[4] = buf[33];
-    Dev_Now.X[4] = (buf[35] << 8) + buf[34];
-    Dev_Now.Y[4] = (buf[37] << 8) + buf[36];
-    Dev_Now.S[4] = (buf[39] << 8) + buf[38];
+    Dev_Now.Touchkeytrackid[4] = scan_buf_[33];
+    Dev_Now.X[4] = (scan_buf_[35] << 8) + scan_buf_[34];
+    Dev_Now.Y[4] = (scan_buf_[37] << 8) + scan_buf_[36];
+    Dev_Now.S[4] = (scan_buf_[39] << 8) + scan_buf_[38];
 
     for i := 0; i < Dev_Backup.TouchCount; i++:      
       if Dev_Now.Y[i] < 0: Dev_Now.Y[i] = 0
@@ -284,7 +287,14 @@ class Coordinate:
   // arguments that are written directly to a typed field.
   constructor .x .y .s:
 
+coordinate ::= Coordinate 0 0 false
+coordinates x/int y/int s/bool -> Coordinate:
+  coordinate.x = x
+  coordinate.y = y
+  coordinate.s = s
+  return coordinate
+
 get_coords -> Coordinate:
   GT911_Scan
 
-  return Coordinate (480 - Dev_Now.Y[0]) (Dev_Now.X[0]) touched
+  return coordinates (480 - Dev_Now.Y[0]) (Dev_Now.X[0]) touched

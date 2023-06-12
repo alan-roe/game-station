@@ -1,8 +1,9 @@
 import font show *
 import font_x11_adobe.sans_14
+import pixel_display show *
 import pixel_display.true_color show *
 import pixel_display.texture show *
-import pixel_display show *
+import png_display show *
 import monitor show Mutex
 import bitmap show *
 import color_tft show *
@@ -147,9 +148,6 @@ abstract class Button extends UiElement:
     return pressed_
 
   pressed= new_pressed/bool:
-    if new_pressed == pressed_ or not enabled_:
-      return
-
     last_pressed_ = pressed_
     pressed_ = new_pressed
 
@@ -163,7 +161,7 @@ abstract class Button extends UiElement:
   update coords/Coordinate:
     if not enabled:
       return
-    if (within coords.x coords.y):
+    if coords.s and (within coords.x coords.y):
       pressed = true
     else: pressed = false
 
@@ -228,12 +226,13 @@ class IconButton extends Button:
 
 abstract class Ui:
   display /TrueColorPixelDisplay
+  display_driver/AbstractDriver
   display_enabled_ := true
   ctx /GraphicsContext
   els := []
   btns := []
 
-  constructor.with_elements .display/TrueColorPixelDisplay .els/List --landscape/bool?=null:
+  constructor.with_elements .display/TrueColorPixelDisplay .display_driver .els/List --landscape/bool?=null:
     if landscape == null:
       ctx = display.context
     else: ctx = display.context --landscape=landscape
@@ -241,7 +240,7 @@ abstract class Ui:
     els.do:
       it.add display ctx
   
-  constructor .display/TrueColorPixelDisplay --landscape/bool?=null:
+  constructor .display/TrueColorPixelDisplay .display_driver --landscape/bool?=null:
     if landscape == null:
       ctx = display.context
     else: ctx = display.context --landscape=landscape
@@ -289,6 +288,7 @@ abstract class Ui:
 
   draw --speed/int?=50:
     if display_enabled_:
+      // write_file "test.png" (display_driver as PngDriver_) display
       display.draw --speed=speed
 
   update coords/Coordinate:
@@ -300,7 +300,13 @@ abstract class Ui:
 main:
   // wait for wifi to start 
   sleep --ms=10000
-  ui := MainUi
+
+  // display_driver := TrueColorPngDriver 480 320
+  // display := TrueColorPixelDisplay display_driver
+  display_driver := load_driver WROOM_16_BIT_LANDSCAPE_SETTINGS
+  display := get_display display_driver
+
+  ui := MainUi display display_driver
 
   sleep --ms=100
 
