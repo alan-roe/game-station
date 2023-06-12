@@ -5,7 +5,7 @@ import encoding.json
 import certificate_roots
 
 import .env
-import .main
+import .mqtt
 
 class FortniteStats:
   static HOST ::= "fortniteapi.io"
@@ -32,7 +32,7 @@ class FortniteStats:
       client.close
     
     if exception:
-      mqtt_debug "Failed to get fortnite stats $exception"
+      print "Failed to get fortnite stats $exception"
       return
   
     level = (data.get "account").get "level"
