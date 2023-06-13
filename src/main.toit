@@ -124,11 +124,11 @@ class MainUi extends Ui:
       --disabled_color = bg_color
       --rounded)
 
-    screen_btn = (button 460 2 20 20 
+    screen_btn = (button 455 2 20 20 
       --icon=icons.MONITOR)
     
     now := (Time.now).local
-    time_texture = display.text (ctx.with --color=BLACK --font=sans_14) 410 18 "$now.h:$(%02d now.m)"
+    time_texture = display.text (ctx.with --color=BLACK --font=sans_14) 405 18 "$now.h:$(%02d now.m)"
 
     weather_icon = TextureGroup
     Weather.set ctx.transform display
@@ -140,7 +140,7 @@ class MainUi extends Ui:
     super display display_driver --landscape
 
     load_elements
-
+  
   buttons_enabled= enable/bool:
     btns.do:
       it.enabled = enable
@@ -201,10 +201,19 @@ write_file filename/string driver/PngDriver_ display/PixelDisplay:
       driver
       display
 
+ui_callbacks ui/MainUi:
+  clock ui.time_texture
+  FortniteStats ui.fortnite_stats
+  weather_updater ui.weather_win ui.weather_icon
+  message_updater ui.messages
+
 main:
   mqtt_debug system_stats
   time := Time.now.local
   start_time = "$time.day/$time.month/$time.year $time.h:$(%02d time.m):$(%02d time.s)"
+
+  // Touchscreen Init
+  gt911_int
 
   display_driver := load_driver WROOM_16_BIT_LANDSCAPE_SETTINGS
   display := get_display display_driver
@@ -212,25 +221,16 @@ main:
   // display_driver := TrueColorPngDriver 480 320
   // display := TrueColorPixelDisplay display_driver
   ui := MainUi display display_driver
+  ui_callbacks ui
   sleep --ms=50
-  clock ui.time_texture
-  sleep --ms=50
-  FortniteStats ui.fortnite_stats
-  sleep --ms=50
-  weather_updater ui.weather_win ui.weather_icon
-  sleep --ms=50
-  message_updater ui.messages
-  sleep --ms=500
   ui.draw
-  sleep --ms=50
-  gt911_int
-  sleep --ms=50
 
   stats_timer := Time.now
   display_timer := Time.now
   button_timer := Time.now
 
-  screenshot_sub ui
+  // Only on simulation
+  // screenshot_sub ui
 
   while true:
     exception := catch --trace --unwind:
@@ -273,15 +273,17 @@ main:
         sleep --ms=20
       else:
         // Re-enable on touch
-        if get_coords.s:
-          ui.display_enabled = true
-          display_driver.backlight_on
-          display_timer = Time.now
-          ui.draw
-
+        if get_coords.s:          
           // We disable the buttons for a second
           ui.buttons_enabled = false
           button_timer = Time.now
+
+          ui.display_enabled = true
+          display_driver.backlight_on
+          display_timer = Time.now
+
+          ui.draw
+          
         // Sleep a bit longer when the display is off
         sleep --ms=1000
     if exception:

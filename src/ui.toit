@@ -56,14 +56,35 @@ class ContentWindow extends UiElement:
     super x_ y_ transform tracker
     
     if rounded: 
-      tx_g_.add (RoundedCornerWindow x_ y_ w_ h_ transform 8 BLACK)
-      tx_g_.add (RoundedCornerWindow (x_ + 1) (y_ + 1) (w_ - 2) (h_ - 2) transform 8 title_bg)
+      tx_g_.add (RoundedCornerWindow x_ y_ w_ (title_bar_h_ + 8) transform 8 BLACK)
+      tx_g_.add (RoundedCornerWindow x_ (y_+ h_ - title_bar_h_) w_ title_bar_h_ transform 8 BLACK)
+      tx_g_.add (RoundedCornerWindow (x_ + 1) (y_ + 1) (w_ - 2) (title_bar_h_ + 5) transform 8 title_bg)
+      tx_g_.add (RoundedCornerWindow (x_ + 1) (y_+ h_ - title_bar_h_ + 1) (w_ - 2) (title_bar_h_ - 2) transform 8 title_bg)
     else: 
-      tx_g_.add (FilledRectangle title_bg x_ y_ w_ h_ transform)
+      // Enclosure Outline
+      // Top
+      tx_g_.add (FilledRectangle.line BLACK x_ y_ (x_+w_) y_ transform)
+      // Left
+      tx_g_.add (FilledRectangle.line BLACK x_ y_ x_ (y_+h_) transform)
+      // Bottom
+      tx_g_.add (FilledRectangle.line BLACK x_ (y_+h_ - 1) (x_ + w_) (y_+h_ - 1) transform)
+      // Right
+      tx_g_.add (FilledRectangle.line BLACK (x_+w_ - 1) y_ (x_+w_ - 1) (y_+h_) transform)
       tx_g_.add (FilledRectangle title_bg (x_ + 1) (y_ + 1) (w_ - 2) (h_ - 2) transform)
 
-    tx_g_.add (FilledRectangle BLACK x_ (y_+ title_bar_h_) w_ (h_ - title_bar_h_ - 8) transform)
     tx_g_.add (FilledRectangle content_bg (x_ + 1) (y_ + title_bar_h_ + 1) (w_ - 2) (h_ - title_bar_h_ - 10) transform)
+    // Content Outline
+    content_y := (y_ + title_bar_h_)
+    content_h := (h_ - title_bar_h_ - 8)
+    // Top
+    tx_g_.add (FilledRectangle.line BLACK x_ content_y (x_ + w_) content_y transform)
+    // Bottom
+    tx_g_.add (FilledRectangle.line BLACK x_ (content_y + content_h - 1) (x_ + w_) (content_y + content_h - 1) transform)
+    // Left
+    tx_g_.add (FilledRectangle.line BLACK x_ content_y x_ (content_y+content_h) transform)
+    // Right
+    tx_g_.add (FilledRectangle.line BLACK (x_+w_ - 1) content_y (x_+w_ - 1) (content_y+content_h) transform)
+
     tx_g_.add (TextTexture (x_ + padding) (y_ + padding + title_text_h) transform TEXT_TEXTURE_ALIGN_LEFT title title_font font_color)
     tx_g_.add content_tx_.tx_g_
 
@@ -183,18 +204,15 @@ class TextButton extends Button:
   
   constructor x y w h .text/string tracker --rounded/bool?=false --.enabled_color/int?=0xa6a6a6 --.disabled_color/int?=0x9f9f9f --transform/Transform?=Transform.identity --font/Font?=(Font.get "sans10"):
     text_h := text_height text font
-    outline := ?
-    if rounded: 
-      outline = (RoundedCornerWindow (x - 1) (y - 1) (w + 2) (h + 2) transform 5 BLACK)
-      bg_rect_ = (RoundedCornerWindow x y w h transform 5 enabled_color) 
-    else: 
-      outline = (FilledRectangle BLACK (x - 1) (y - 1) (w + 2) (h + 2) transform)
-      bg_rect_ = (FilledRectangle enabled_color x y w h transform)
-    txt_tex_ = (MultiLineText (x + 5) (y + (h/4) + text_h) text font BLACK transform 5 tracker).tx_g_
-    //(TextTexture (x + 5) (y + 5 + text_h) transform TEXT_TEXTURE_ALIGN_LEFT text font BLACK)
-
     tx := TextureGroup
-    tx.add outline
+    if rounded: 
+      tx.add (RoundedCornerWindow x y w h transform 5 BLACK)
+      bg_rect_ = (RoundedCornerWindow (x + 1) (y + 1) (w - 2) (h - 2) transform 5 enabled_color) 
+    else: 
+      tx.add (FilledRectangle BLACK x y w h transform)
+      bg_rect_ = (FilledRectangle enabled_color (x + 1) (y + 1) (w - 2) (h - 2) transform)
+    txt_tex_ = (MultiLineText (x + 5) (y + (h/4) + text_h) text font BLACK transform 5 tracker).tx_g_
+
     tx.add bg_rect_
     tx.add txt_tex_
     
@@ -288,15 +306,8 @@ abstract class Ui:
     return btn
   
   screenshot:
-    display.close
-    display_driver.close
-    driver := TrueColorPngDriver 480 320
-    dis := TrueColorPixelDisplay driver
-    els.do: dis.add it.tx_g_
     debug "writing png"
-    debug (system_stats --gc)
-    write_file "file.png" driver dis
-    // write_to MqttWriter driver dis
+    write_file "file.png" (display_driver as PngDriver_) display
     debug "wrote png"
 
   draw --speed/int?=50:
