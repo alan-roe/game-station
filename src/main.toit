@@ -40,7 +40,6 @@ import .weather
 import .mqtt
 
 start_time := ""
-temp_bool := false
 new_msg_alert := false
 
 class MainUi extends Ui:
@@ -174,8 +173,8 @@ stats_list := List 11
 9. Full GC count for the process (including compacting GCs)
 10. Full compacting GC count for the process
 */
-system_stats -> string:
-  process_stats stats_list
+system_stats --gc/bool?=false -> string:
+  process_stats stats_list --gc=gc
   ret := "Start Time: $start_time\n"
   ret += "New-space (small collection) GC count: $stats_list[0]\n"
   ret += "Allocated memory on the Toit heap:     $stats_list[1]\n"
@@ -206,9 +205,10 @@ main:
   mqtt_debug system_stats
   time := Time.now.local
   start_time = "$time.day/$time.month/$time.year $time.h:$(%02d time.m):$(%02d time.s)"
-  
+
   display_driver := load_driver WROOM_16_BIT_LANDSCAPE_SETTINGS
   display := get_display display_driver
+
   // display_driver := TrueColorPngDriver 480 320
   // display := TrueColorPixelDisplay display_driver
   ui := MainUi display display_driver
@@ -230,12 +230,12 @@ main:
   display_timer := Time.now
   button_timer := Time.now
 
+  screenshot_sub ui
+
   while true:
-    exception := catch:
+    exception := catch --trace --unwind:
       // Send stats to server
-      if stats_timer.to_now.in_s > 30:
-        if temp_bool:
-          mqtt_debug "running while screen off"
+      if stats_timer.to_now.in_m > 5:
         mqtt_debug system_stats
         stats_timer = Time.now
       
@@ -256,7 +256,6 @@ main:
           mqtt_debug "disabling display: timeout"
           ui.display_enabled = false
           display_driver.backlight_off
-          temp_bool = true
 
         // Check buttons
         if ui.send_btn.released or ui.accept_btn.released:
@@ -270,7 +269,6 @@ main:
         if ui.screen_btn.released:
           ui.display_enabled = false
           display_driver.backlight_off
-          temp_bool = true
 
         sleep --ms=20
       else:
@@ -288,6 +286,10 @@ main:
         sleep --ms=1000
     if exception:
       mqtt_debug "MAIN EXCEPTION: $exception"
+
+screenshot_sub ui/Ui:
+  mqtt_service.subscribe "take_screenshot":: | topic/string payload/ByteArray |
+    ui.screenshot
 
 new_message_alert_led:
   new_msg_alert = true

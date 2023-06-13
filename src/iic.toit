@@ -179,7 +179,6 @@ GT911_Scan:
   if (scan_buf_[0] & 0x80) == 0x00:
     touched = false
     GT911_WR_Reg GT911_READ_XY_REG #[Clearbuf_] 1
-    log.default.info "No touch\r\n"
     sleep --ms=10
   else:
     touched = true;

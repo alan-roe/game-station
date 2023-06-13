@@ -12,6 +12,7 @@ import icons show Icon
 import .get_display
 import .iic
 import .main
+import .mqtt
 
 abstract class UiElement:
   x_ /int
@@ -285,6 +286,18 @@ abstract class Ui:
     els.add btn
     btns.add btn
     return btn
+  
+  screenshot:
+    display.close
+    display_driver.close
+    driver := TrueColorPngDriver 480 320
+    dis := TrueColorPixelDisplay driver
+    els.do: dis.add it.tx_g_
+    debug "writing png"
+    debug (system_stats --gc)
+    write_file "file.png" driver dis
+    // write_to MqttWriter driver dis
+    debug "wrote png"
 
   draw --speed/int?=50:
     if display_enabled_:
