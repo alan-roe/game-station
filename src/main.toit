@@ -16,7 +16,6 @@ import http.headers
 import certificate_roots
 import esp32 
 import esp32 show enable_external_wakeup deep_sleep wakeup_cause enable_touchpad_wakeup reset_reason
-import log show Logger set_default debug
 import log.target show *
 import log.level show *
 import pictogrammers_icons.size_20 as icons
@@ -56,7 +55,7 @@ class MainUi extends Ui:
   
   time_texture/TextTexture? := null
   weather_icon/TextureGroup? := null
-
+  wifi_icon/TextureGroup? := null
 
   load_elements:
     sans_14 := Font [sans_14.ASCII, sans_14.LATIN_1_SUPPLEMENT]
@@ -128,14 +127,17 @@ class MainUi extends Ui:
       --icon=icons.MONITOR)
     
     now := (Time.now).local
-    time_texture = display.text (ctx.with --color=BLACK --font=sans_14) 405 18 "$now.h:$(%02d now.m)"
+    time_texture = display.text (ctx.with --color=BLACK --font=sans_14) 380 18 "$now.h:$(%02d now.m)"
 
     weather_icon = TextureGroup
     Weather.set ctx.transform display
 
     Weather.insert "01d" weather_icon
     display.add weather_icon 
-  
+    
+    wifi_icon = TextureGroup
+    display.add wifi_icon
+          
   constructor display display_driver:  
     super display display_driver --landscape
 
@@ -202,10 +204,36 @@ write_file filename/string driver/PngDriver_ display/PixelDisplay:
       display
 
 ui_callbacks ui/MainUi:
+  monitor_wifi ui
   clock ui.time_texture
   FortniteStats ui.fortnite_stats
   weather_updater ui.weather_win ui.weather_icon
   message_updater ui.messages
+
+wifi_connect := true
+
+monitor_wifi ui/MainUi:
+  transform := ui.ctx.transform
+  wifi_icon := ui.wifi_icon
+  wifi_on := (IconTexture 430 (6+(icons.WIFI.icon_extent[1])) transform TEXT_TEXTURE_ALIGN_LEFT icons.WIFI icons.WIFI.font_ BLACK)
+  wifi_off := (IconTexture 430 (6+(icons.WIFI_OFF.icon_extent[1])) transform TEXT_TEXTURE_ALIGN_LEFT icons.WIFI_OFF icons.WIFI_OFF.font_ BLACK)
+
+  wifi_icon.add wifi_on
+  wifi_on.change_tracker = ui.display
+  wifi_icon.invalidate
+  task::
+    while true:
+      if (catch: net.open):
+        debug "wifi not connected"
+        if wifi_connect:
+          wifi_icon.remove_all
+          wifi_icon.add wifi_off
+          wifi_off.change_tracker = ui.display
+          wifi_icon.invalidate
+          wifi_connect = false
+      else if not wifi_connect:
+        esp32.deep_sleep (Duration --s=1)
+      sleep --ms=1000
 
 main:
   mqtt_debug system_stats
@@ -233,7 +261,12 @@ main:
   // screenshot_sub ui
 
   while true:
-    exception := catch --trace --unwind:
+    if not wifi_connect:
+      debug "wifi not connected"
+      ui.draw
+      sleep --ms=5000
+      continue
+    exception := catch:
       // Send stats to server
       if stats_timer.to_now.in_m > 5:
         mqtt_debug system_stats
@@ -263,7 +296,7 @@ main:
         else if ui.reject_btn.released:
           play_deny
 
-        if not ui.send_btn.enabled and button_timer.to_now.in_s > 2:
+        if not ui.send_btn.enabled and button_timer.to_now.in_s > 1:
           ui.buttons_enabled = true
 
         if ui.screen_btn.released:
@@ -287,6 +320,7 @@ main:
         // Sleep a bit longer when the display is off
         sleep --ms=1000
     if exception:
+      debug "MAIN EXCEPTION: $exception"
       mqtt_debug "MAIN EXCEPTION: $exception"
 
 screenshot_sub ui/Ui:

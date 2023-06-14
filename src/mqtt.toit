@@ -49,5 +49,7 @@ message_updater msg_texture/ContentWindow:
     msg_texture.content = new_msg
 
 mqtt_debug msg/string:
-  time := Time.now.local
-  mqtt_service.publish "esp32_debug" ("--- $time.day/$time.month/$time.year $time.h:$(%02d time.m):$(%02d time.s) ---\n$msg").to_byte_array
+  e := catch --trace:
+    time := Time.now.local
+    mqtt_service.publish "esp32_debug" ("--- $time.day/$time.month/$time.year $time.h:$(%02d time.m):$(%02d time.s) ---\n$msg").to_byte_array
+  if e: debug "mqtt_debug exception: $e"
