@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "name": "my-pod",
+  "sdk-version": "v2.0.0-alpha.84",
+  "artemis-version": "v0.6.2",
+  "max-offline": "0s",
+  "connections": [
+    {
+      "type": "wifi",
+      "ssid": "",
+      "password": ""
+    }
+  ],
+  "containers": {}
+}
