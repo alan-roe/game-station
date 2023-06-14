@@ -30,9 +30,6 @@ import .env
 import .get_display  // Import file in current project, see above.
 import .led
 import .iic
-import .bg
-import .bmp
-import .bg_b
 import .fortnite
 import .ui
 import .weather

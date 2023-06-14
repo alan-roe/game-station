@@ -3,7 +3,7 @@
   "name": "my-pod",
   "sdk-version": "v2.0.0-alpha.84",
   "artemis-version": "v0.6.2",
-  "max-offline": "0s",
+  "max-offline": "30s",
   "connections": [
     {
       "type": "wifi",
@@ -11,5 +11,13 @@
       "password": ""
     }
   ],
-  "containers": {}
+  "containers": {
+      "setup": {
+        "entrypoint": "../src/setup_container/setup.toit" 
+      },
+      "main": {
+        "entrypoint": "../src/main.toit",
+        "critical": true
+      }
+  }
 }
