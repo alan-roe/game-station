@@ -38,6 +38,7 @@ import .mqtt
 
 start_time := ""
 new_msg_alert := false
+network := ?
 
 class MainUi extends Ui:
   // Buttons
@@ -54,6 +55,9 @@ class MainUi extends Ui:
   time_texture/TextTexture? := null
   weather_icon/TextureGroup? := null
   wifi_icon/TextureGroup? := null
+  wifi_on/IconTexture? := null
+  wifi_off/IconTexture? := null
+  wifi_connected_ := false
 
   load_elements:
     sans_14 := Font [sans_14.ASCII, sans_14.LATIN_1_SUPPLEMENT]
@@ -123,6 +127,9 @@ class MainUi extends Ui:
 
     screen_btn = (button 455 2 20 20 
       --icon=icons.MONITOR)
+
+    wifi_on = (IconTexture 430 (6+(icons.WIFI.icon_extent[1])) ctx.transform TEXT_TEXTURE_ALIGN_LEFT icons.WIFI icons.WIFI.font_ BLACK)
+    wifi_off = (IconTexture 430 (6+(icons.WIFI_OFF.icon_extent[1])) ctx.transform TEXT_TEXTURE_ALIGN_LEFT icons.WIFI_OFF icons.WIFI_OFF.font_ BLACK)
     
     now := (Time.now).local
     time_texture = display.text (ctx.with --color=BLACK --font=sans_14) 380 18 "$now.h:$(%02d now.m)"
@@ -150,6 +157,22 @@ class MainUi extends Ui:
       return
 
     display_enabled_ = enable
+  
+  wifi_connected -> bool:
+    return wifi_connected_
+  
+  wifi_connected= connected/bool:
+    if connected:
+      wifi_icon.remove_all
+      wifi_icon.add wifi_on
+      wifi_on.change_tracker = display
+      wifi_icon.invalidate
+    else:
+      wifi_icon.remove_all
+      wifi_icon.add wifi_off
+      wifi_off.change_tracker = display
+      wifi_icon.invalidate
+    wifi_connected_ = connected
 
   update coords:
     if coords.s:
@@ -202,18 +225,14 @@ write_file filename/string driver/PngDriver_ display/PixelDisplay:
       display
 
 ui_callbacks ui/MainUi:
-  monitor_wifi ui
+  if SIMULATE:
+    ui.wifi_connected = true
+  else: monitor_wifi ui
   clock ui.time_texture
   mqtt_subs ui
   
-wifi_connect := false
-
+    
 monitor_wifi ui/MainUi:
-  transform := ui.ctx.transform
-  wifi_icon := ui.wifi_icon
-  wifi_on := (IconTexture 430 (6+(icons.WIFI.icon_extent[1])) transform TEXT_TEXTURE_ALIGN_LEFT icons.WIFI icons.WIFI.font_ BLACK)
-  wifi_off := (IconTexture 430 (6+(icons.WIFI_OFF.icon_extent[1])) transform TEXT_TEXTURE_ALIGN_LEFT icons.WIFI_OFF icons.WIFI_OFF.font_ BLACK)
-
   task::
     while true:
       signal_strength/float? := 0.0
@@ -221,27 +240,20 @@ monitor_wifi ui/MainUi:
         signal_strength = network.signal_strength
       if e:
         debug "wifi not connected $e"
-        if wifi_connect:
-          wifi_icon.remove_all
-          wifi_icon.add wifi_off
-          wifi_off.change_tracker = ui.display
-          wifi_icon.invalidate
+        if ui.wifi_connected:
+          ui.wifi_connected = false
           mqtt_service.close --force
-          wifi_connect = false
         reconnect_e := catch: 
           network = wifi.open --ssid=WIFI_SSID --password=WIFI_PASS
           mqtt_service.close --force
           mqtt_service = mqtt_init
+          mqtt_subs ui
         if reconnect_e:  
           debug "couldn't reconnect"
           sleep --ms=1000
-      else if not wifi_connect:
-        wifi_icon.remove_all
-        wifi_icon.add wifi_on
-        wifi_on.change_tracker = ui.display
-        wifi_icon.invalidate
-        wifi_connect = true
-      debug "WiFi strength: $signal_strength"
+      else if not ui.wifi_connected:
+        ui.wifi_connected = true
+      // debug "WiFi strength: $signal_strength"
       sleep --ms=1000
 
 mqtt_subs ui/MainUi:
@@ -252,7 +264,11 @@ mqtt_subs ui/MainUi:
   FortniteStats ui.fortnite_stats
 
 main:
-  sleep --ms=10000
+  // debug "Started Application\nReset Reason: $(esp32.reset_reason)"
+  if not SIMULATE: sleep --ms=10000
+
+  if SIMULATE: network = net.open
+  else: network = wifi.open --ssid=WIFI_SSID --password=WIFI_PASS
   
   time := Time.now.local
   start_time = "$time.day/$time.month/$time.year $time.h:$(%02d time.m):$(%02d time.s)"
@@ -274,7 +290,7 @@ main:
 
   ui.draw
 
-  stats_timer := Time.now
+  // stats_timer := Time.now
   display_timer := Time.now
   button_timer := Time.now
 
@@ -286,10 +302,10 @@ main:
     //   continue
     exception := catch:
       // Send stats to server
-      if stats_timer.to_now.in_m == 5:
-        debug system_stats
-        mqtt_debug system_stats
-        stats_timer = Time.now
+      // if stats_timer.to_now.in_m == 5:
+      //   debug system_stats
+      //   mqtt_debug system_stats
+      //   stats_timer = Time.now
       // If the display is enabled
       if ui.display_enabled:
         coords := get_coords

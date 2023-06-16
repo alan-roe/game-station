@@ -11,7 +11,6 @@ import .weather
 import .main
 
 mqtt_service := mqtt_init
-network := wifi.open --ssid=WIFI_SSID --password=WIFI_PASS
 
 mqtt_init -> mqtt.Client?:
   while true:

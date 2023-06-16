@@ -6,11 +6,11 @@ class Weather:
   static change_tracker/Window? := null
 
   static sun_tex := (IndexedPixmapTexture 60 85 49 49 Transform.identity SUN WEATHER_PALETTE)
-  static cloud_tex := (IndexedPixmapTexture 60 85 59 37 Transform.identity CLOUD WEATHER_PALETTE)
-  static raindrops_tex := (IndexedPixmapTexture 60 85 23 19 Transform.identity RAINDROPS WEATHER_PALETTE)
-  static lightning_tex := (IndexedPixmapTexture 60 85 14 23 Transform.identity LIGHTNING WEATHER_PALETTE)
-  static fog_tex := (IndexedPixmapTexture 60 85 54 33 Transform.identity FOG WEATHER_PALETTE)
-  static snow_tex := (IndexedPixmapTexture 60 85 38 41 Transform.identity SNOW WEATHER_PALETTE)
+  static cloud_tex := (IndexedPixmapTexture 55 90 59 37 Transform.identity CLOUD WEATHER_PALETTE)
+  static raindrops_tex := (IndexedPixmapTexture 70 95 23 19 Transform.identity RAINDROPS WEATHER_PALETTE)
+  static lightning_tex := (IndexedPixmapTexture 73 90 14 23 Transform.identity LIGHTNING WEATHER_PALETTE)
+  static snow_tex := (IndexedPixmapTexture 65 87 38 41 Transform.identity SNOW WEATHER_PALETTE)
+  static fog_tex := (IndexedPixmapTexture 60 92 54 33 Transform.identity FOG WEATHER_PALETTE)
 
   static WEATHER_ICONS_ ::= {
     "01d" : sun_tex,
