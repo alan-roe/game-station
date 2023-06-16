@@ -8,6 +8,7 @@ import monitor show Mutex
 import mqtt
 import net
 import net.x509 as net
+import net.wifi as wifi
 import ntp
 import gpio
 import i2c
@@ -203,11 +204,9 @@ write_file filename/string driver/PngDriver_ display/PixelDisplay:
 ui_callbacks ui/MainUi:
   monitor_wifi ui
   clock ui.time_texture
-  FortniteStats ui.fortnite_stats
-  weather_updater ui.weather_win ui.weather_icon
-  message_updater ui.messages
-
-wifi_connect := true
+  mqtt_subs ui
+  
+wifi_connect := false
 
 monitor_wifi ui/MainUi:
   transform := ui.ctx.transform
@@ -215,60 +214,82 @@ monitor_wifi ui/MainUi:
   wifi_on := (IconTexture 430 (6+(icons.WIFI.icon_extent[1])) transform TEXT_TEXTURE_ALIGN_LEFT icons.WIFI icons.WIFI.font_ BLACK)
   wifi_off := (IconTexture 430 (6+(icons.WIFI_OFF.icon_extent[1])) transform TEXT_TEXTURE_ALIGN_LEFT icons.WIFI_OFF icons.WIFI_OFF.font_ BLACK)
 
-  wifi_icon.add wifi_on
-  wifi_on.change_tracker = ui.display
-  wifi_icon.invalidate
   task::
     while true:
-      if (catch: net.open):
-        debug "wifi not connected"
+      signal_strength/float? := 0.0
+      e := catch: 
+        signal_strength = network.signal_strength
+      if e:
+        debug "wifi not connected $e"
         if wifi_connect:
           wifi_icon.remove_all
           wifi_icon.add wifi_off
           wifi_off.change_tracker = ui.display
           wifi_icon.invalidate
+          mqtt_service.close --force
           wifi_connect = false
+        reconnect_e := catch: 
+          network = wifi.open --ssid=WIFI_SSID --password=WIFI_PASS
+          mqtt_service.close --force
+          mqtt_service = mqtt_init
+        if reconnect_e:  
+          debug "couldn't reconnect"
+          sleep --ms=1000
       else if not wifi_connect:
-        esp32.deep_sleep (Duration --s=1)
+        wifi_icon.remove_all
+        wifi_icon.add wifi_on
+        wifi_on.change_tracker = ui.display
+        wifi_icon.invalidate
+        wifi_connect = true
+      debug "WiFi strength: $signal_strength"
       sleep --ms=1000
 
+mqtt_subs ui/MainUi:
+  if SIMULATE:
+    screenshot_sub ui
+  weather_updater ui.weather_win ui.weather_icon
+  message_updater ui.messages
+  FortniteStats ui.fortnite_stats
+
 main:
-  mqtt_debug system_stats
+  sleep --ms=10000
+  
   time := Time.now.local
   start_time = "$time.day/$time.month/$time.year $time.h:$(%02d time.m):$(%02d time.s)"
+  
+  display := ?
+  display_driver := ?
+  if SIMULATE:
+    display_driver = TrueColorPngDriver 480 320
+    display = TrueColorPixelDisplay display_driver  
+  else:
+    // Touchscreen Init
+    gt911_int
+    display_driver = load_driver WROOM_16_BIT_LANDSCAPE_SETTINGS
+    display = get_display display_driver
 
-  // Touchscreen Init
-  gt911_int
-
-  display_driver := load_driver WROOM_16_BIT_LANDSCAPE_SETTINGS
-  display := get_display display_driver
-
-  // display_driver := TrueColorPngDriver 480 320
-  // display := TrueColorPixelDisplay display_driver
   ui := MainUi display display_driver
   ui_callbacks ui
   sleep --ms=50
+
   ui.draw
 
   stats_timer := Time.now
   display_timer := Time.now
   button_timer := Time.now
 
-  // Only on simulation
-  // screenshot_sub ui
-
   while true:
-    if not wifi_connect:
-      debug "wifi not connected"
-      ui.draw
-      sleep --ms=5000
-      continue
+    // if not wifi_connect:
+    //   debug "wifi not connected"
+    //   ui.draw
+    //   sleep --ms=5000
+    //   continue
     exception := catch:
       // Send stats to server
-      if stats_timer.to_now.in_m > 5:
+      if stats_timer.to_now.in_m == 5:
+        debug system_stats
         mqtt_debug system_stats
         stats_timer = Time.now
-      
       // If the display is enabled
       if ui.display_enabled:
         coords := get_coords
@@ -282,8 +303,8 @@ main:
         ui.draw 
 
         // Disable display if 5 minutes untouched
-        if display_timer.to_now.in_m > 5:
-          mqtt_debug "disabling display: timeout"
+        if display_timer.to_now.in_m == 5:
+          debug "disabling display: timeout"
           ui.display_enabled = false
           display_driver.backlight_off
 
@@ -318,6 +339,7 @@ main:
         sleep --ms=1000
     if exception:
       debug "MAIN EXCEPTION: $exception"
+      debug system_stats
       mqtt_debug "MAIN EXCEPTION: $exception"
 
 screenshot_sub ui/Ui:
@@ -343,7 +365,11 @@ clock time_texture/TextTexture:
       sleep --ms=sleep_time*1000
 
 play_request:
-  mqtt_service.publish "gstation_from" "fa".to_byte_array
+  e := catch: mqtt_service.publish "gstation_from" "fa".to_byte_array
+  if e:
+    debug "couldn't send play request: $e"
 
 play_deny:
-  mqtt_service.publish "gstation_from" "fr".to_byte_array
+  e := catch: mqtt_service.publish "gstation_from" "fr".to_byte_array
+  if e:
+    debug "couldn't send deny request: $e"

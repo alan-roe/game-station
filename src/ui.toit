@@ -13,6 +13,7 @@ import .get_display
 import .iic
 import .main
 import .mqtt
+import .env
 
 abstract class UiElement:
   x_ /int
@@ -313,7 +314,8 @@ abstract class Ui:
   draw --speed/int?=50:
     if display_enabled_:
       // write_file "test.png" (display_driver as PngDriver_) display
-      display.draw --speed=speed
+      if not SIMULATE:
+        display.draw --speed=speed
 
   update coords/Coordinate:
     btns.do:

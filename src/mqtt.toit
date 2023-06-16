@@ -1,5 +1,6 @@
 import mqtt
 import net
+import net.wifi as wifi
 import pixel_display.true_color show *
 import pixel_display.texture show *
 
@@ -10,19 +11,22 @@ import .weather
 import .main
 
 mqtt_service := mqtt_init
+network := wifi.open --ssid=WIFI_SSID --password=WIFI_PASS
 
 mqtt_init -> mqtt.Client?:
   while true:
-    try:
-      network := net.open
+    e := catch:
       transport := mqtt.TcpTransport network --host=MQTT_HOST
       client := mqtt.Client --transport=transport
       options := mqtt.SessionOptions
         --client_id=MQTT_CLIENT_ID
       client.start --options=options
       return client
-    finally:
+    if e:
+      debug "mqtt_init: $e"
       sleep --ms=500
+      continue
+    break
   return null
 
 weather_updater weather_win/ContentWindow weather_icon/TextureGroup:
@@ -49,7 +53,7 @@ message_updater msg_texture/ContentWindow:
     msg_texture.content = new_msg
 
 mqtt_debug msg/string:
-  e := catch --trace:
+  e := catch:
     time := Time.now.local
     mqtt_service.publish "esp32_debug" ("--- $time.day/$time.month/$time.year $time.h:$(%02d time.m):$(%02d time.s) ---\n$msg").to_byte_array
   if e: debug "mqtt_debug exception: $e"

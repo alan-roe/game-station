@@ -2,6 +2,7 @@ import gpio
 import log
 
 import .mqtt
+import .env
 
 IIC_SCL ::= gpio.Pin 32
 IIC_SDA ::= gpio.Pin 33
@@ -294,6 +295,7 @@ coordinates x/int y/int s/bool -> Coordinate:
   return coordinate
 
 get_coords -> Coordinate:
-  GT911_Scan
+  if not SIMULATE:
+    GT911_Scan
 
   return coordinates (480 - Dev_Now.Y[0]) (Dev_Now.X[0]) touched

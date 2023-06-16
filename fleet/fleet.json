@@ -1,9 +1,0 @@
-{
-  "id": "4d812ae2-499c-5ba6-a168-4a931c01d53f",
-  "organization": "0949baaa-ae7f-480d-b555-25222496b5c1",
-  "groups": {
-    "default": {
-      "pod": "my-pod@latest"
-    }
-  }
-}
