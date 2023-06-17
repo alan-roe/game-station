@@ -34,7 +34,6 @@ class Weather:
   }
   
   static set transform tracker:
-    
     transform_ = transform
     change_tracker = tracker
 

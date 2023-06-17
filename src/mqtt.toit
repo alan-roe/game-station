@@ -10,23 +10,21 @@ import .ui
 import .weather
 import .main
 
-mqtt_service := mqtt_init
+mqtt_service := null
 
-mqtt_init -> mqtt.Client?:
+mqtt_init:
   while true:
     e := catch:
       transport := mqtt.TcpTransport network --host=MQTT_HOST
-      client := mqtt.Client --transport=transport
+      mqtt_service = mqtt.Client --transport=transport
       options := mqtt.SessionOptions
         --client_id=MQTT_CLIENT_ID
-      client.start --options=options
-      return client
+      mqtt_service.start --options=options
     if e:
       debug "mqtt_init: $e"
       sleep --ms=500
       continue
     break
-  return null
 
 weather_updater weather_win/ContentWindow weather_icon/TextureGroup:
   mqtt_service.subscribe "openweather/main/temp":: | topic/string payload/ByteArray |

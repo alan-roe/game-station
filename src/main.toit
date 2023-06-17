@@ -16,11 +16,10 @@ import http
 import http.headers
 import certificate_roots
 import esp32 
-import esp32 show enable_external_wakeup deep_sleep wakeup_cause enable_touchpad_wakeup reset_reason
+import esp32 show reset_reason adjust_real_time_clock
 import log.target show *
 import log.level show *
 import pictogrammers_icons.size_20 as icons
-
 import pixel_display show *
 import pixel_display.true_color show *
 import pixel_display.texture show *
@@ -68,7 +67,7 @@ class MainUi extends Ui:
     title_color := 0x1B90DD
     
     window 0 0 480 320 "Jackson's Game Station"
-      --title_font = sans_14
+      --title_font = Font [sans_14_bold.ASCII]
       --padding = 5
       --title_bg = title_color
       --content_bg = bg_color
@@ -85,6 +84,7 @@ class MainUi extends Ui:
 
     window 160 35 300 115 "Actions"
       --title_font = sans_14
+      --content_font = sans_10
       --title_bg = title_color
       --content_bg = content_color
       --padding = 5
@@ -92,6 +92,7 @@ class MainUi extends Ui:
 
     fortnite_stats = (window 20 160 130 140 "Fortnite Stats" 
       --content = "Played: \nWins: \nKills: \nTop 25: "
+      --content_font = sans_10
       --title_font = sans_14
       --title_bg = title_color
       --content_bg = content_color
@@ -100,6 +101,7 @@ class MainUi extends Ui:
 
     messages = window 160 160 300 140 "Messages" 
       --content = "No new messages"
+      --content_font = sans_10
       --title_font = sans_14
       --title_bg = title_color
       --content_bg = content_color
@@ -128,9 +130,6 @@ class MainUi extends Ui:
     screen_btn = (button 455 2 20 20 
       --icon=icons.MONITOR)
 
-    wifi_on = (IconTexture 430 (6+(icons.WIFI.icon_extent[1])) ctx.transform TEXT_TEXTURE_ALIGN_LEFT icons.WIFI icons.WIFI.font_ BLACK)
-    wifi_off = (IconTexture 430 (6+(icons.WIFI_OFF.icon_extent[1])) ctx.transform TEXT_TEXTURE_ALIGN_LEFT icons.WIFI_OFF icons.WIFI_OFF.font_ BLACK)
-    
     now := (Time.now).local
     time_texture = display.text (ctx.with --color=BLACK --font=sans_14) 380 18 "$now.h:$(%02d now.m)"
 
@@ -140,7 +139,12 @@ class MainUi extends Ui:
     Weather.insert "01d" weather_icon
     display.add weather_icon 
     
+    wifi_on = (IconTexture 430 (6+(icons.WIFI.icon_extent[1])) ctx.transform TEXT_TEXTURE_ALIGN_LEFT icons.WIFI icons.WIFI.font_ BLACK)
+    wifi_off = (IconTexture 430 (6+(icons.WIFI_OFF.icon_extent[1])) ctx.transform TEXT_TEXTURE_ALIGN_LEFT icons.WIFI_OFF icons.WIFI_OFF.font_ BLACK)
+
     wifi_icon = TextureGroup
+    wifi_icon.add wifi_off
+    wifi_icon.change_tracker = display
     display.add wifi_icon
           
   constructor display display_driver:  
@@ -227,32 +231,43 @@ write_file filename/string driver/PngDriver_ display/PixelDisplay:
 ui_callbacks ui/MainUi:
   if SIMULATE:
     ui.wifi_connected = true
+    network = net.open
+    mqtt_init
   else: monitor_wifi ui
   clock ui.time_texture
-  mqtt_subs ui
-  
-    
+  e := catch: with_timeout --ms=2000:
+    while true:
+      catch: 
+        if not mqtt_service.is_closed:
+          break
+  if e == null:
+    mqtt_subs ui
+
 monitor_wifi ui/MainUi:
   task::
     while true:
       signal_strength/float? := 0.0
-      e := catch: 
+      e := catch:
         signal_strength = network.signal_strength
       if e:
         debug "wifi not connected $e"
         if ui.wifi_connected:
           ui.wifi_connected = false
           mqtt_service.close --force
+          network = null
+        
         reconnect_e := catch: 
           network = wifi.open --ssid=WIFI_SSID --password=WIFI_PASS
-          mqtt_service.close --force
-          mqtt_service = mqtt_init
-          mqtt_subs ui
         if reconnect_e:  
-          debug "couldn't reconnect"
+          debug "couldn't reconnect $reconnect_e"
           sleep --ms=1000
-      else if not ui.wifi_connected:
-        ui.wifi_connected = true
+        else:
+          result ::= ntp.synchronize
+          if result:
+            adjust_real_time_clock result.adjustment
+          mqtt_init
+          mqtt_subs ui
+          ui.wifi_connected = true
       // debug "WiFi strength: $signal_strength"
       sleep --ms=1000
 
@@ -263,13 +278,24 @@ mqtt_subs ui/MainUi:
   message_updater ui.messages
   FortniteStats ui.fortnite_stats
 
-main:
-  // debug "Started Application\nReset Reason: $(esp32.reset_reason)"
-  if not SIMULATE: sleep --ms=10000
+turn_off_led:
+  pin4 := gpio.Pin 4 --output
+  pin16 := gpio.Pin 16 --output
+  pin17 := gpio.Pin 17 --output
+  pin4.set 0
+  pin16.set 0
+  pin17.set 0
+  pin4.close
+  pin16.close
+  pin17.close
 
-  if SIMULATE: network = net.open
-  else: network = wifi.open --ssid=WIFI_SSID --password=WIFI_PASS
-  
+main:
+  if not SIMULATE:
+    turn_off_led
+    debug "Started Application\nReset Reason: $(esp32.reset_reason)"
+    sleep --ms=10000
+  set_timezone "IST-1GMT0,M10.5.0,M3.5.0/1"
+
   time := Time.now.local
   start_time = "$time.day/$time.month/$time.year $time.h:$(%02d time.m):$(%02d time.s)"
   
@@ -363,6 +389,7 @@ screenshot_sub ui/Ui:
     ui.screenshot
 
 new_message_alert_led:
+  if SIMULATE: return
   new_msg_alert = true
   while new_msg_alert:
     Led.blue

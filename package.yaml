@@ -29,6 +29,3 @@ dependencies:
   png_display:
     url: github.com/toitware/toit-png-display.git
     version: ^0.2.0
-  roboto:
-    url: github.com/toitware/toit-font-google-100dpi-roboto
-    version: ^1.2.0

@@ -10,7 +10,6 @@ prefixes:
   pictogrammers_icons: toit-icons-pictogrammers
   pixel_display: toit-pixel-display
   png_display: toit-png-display.git
-  roboto: toit-font-google-100dpi-roboto
 packages:
   mqtt:
     url: github.com/toitware/mqtt
@@ -42,10 +41,6 @@ packages:
     hash: 485c03596df840ec16b3e198736f044785d7e145
     prefixes:
       pixel_display: toit-pixel-display
-  toit-font-google-100dpi-roboto:
-    url: github.com/toitware/toit-font-google-100dpi-roboto
-    version: 1.2.0
-    hash: 73385f548737c998ee675cb9296643676c9f5c9b
   toit-icons-pictogrammers:
     url: github.com/toitware/toit-icons-pictogrammers
     version: 1.0.0
