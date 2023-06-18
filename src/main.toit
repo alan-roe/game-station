@@ -73,12 +73,12 @@ class MainUi extends Ui:
       --content_bg = bg_color
 
     weather_win = window 20 35 130 115 "Weather" 
-      --content = "21°C"
+      --content = "??°C"
       --content_font = sans_14
       --title_font = sans_14
       --title_bg = title_color
       --content_bg = content_color
-      --x_padding = 30
+      --x_padding = 32
       --padding = 5
       --rounded
 
@@ -234,14 +234,11 @@ ui_callbacks ui/MainUi:
     network = net.open
     mqtt_init
   else: monitor_wifi ui
+  catch: with_timeout --ms=2000:
+    while not ui.wifi_connected:
+      sleep --ms=100
   clock ui.time_texture
-  e := catch: with_timeout --ms=2000:
-    while true:
-      catch: 
-        if not mqtt_service.is_closed:
-          break
-  if e == null:
-    mqtt_subs ui
+
 
 monitor_wifi ui/MainUi:
   task::
@@ -312,7 +309,7 @@ main:
 
   ui := MainUi display display_driver
   ui_callbacks ui
-  sleep --ms=50
+  sleep --ms=500
 
   ui.draw
 
