@@ -43,9 +43,9 @@ message_updater msg_texture/ContentWindow:
     msg := payload.to_string
     if msg_queue.size > 5:
       msg_queue.remove msg_queue.first
-    msg_queue.add "$now.h:$(%02d now.m) <Alan> $msg"
+    msg_queue.add msg
     new_msg := ""
-    msg_queue.do: new_msg = new_msg + "$it \n" 
+    msg_queue.do: new_msg = new_msg + "$it\n" 
     task:: new_message_alert_led
     msg_texture.content = new_msg
 

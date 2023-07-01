@@ -179,8 +179,8 @@ class MainUi extends Ui:
     wifi_connected_ = connected
 
   update coords:
-    if coords.s:
-      mqtt_debug "Detected touch: $coords.x $coords.y"
+    // if coords.s:
+    //   mqtt_debug "Detected touch: $coords.x $coords.y"
 
     if not display_enabled_: return
 
@@ -290,7 +290,7 @@ main:
   if not SIMULATE:
     turn_off_led
     debug "Started Application\nReset Reason: $(esp32.reset_reason)"
-    sleep --ms=10000
+    sleep --ms=8000
   set_timezone "IST-1GMT0,M10.5.0,M3.5.0/1"
 
   time := Time.now.local
@@ -304,7 +304,7 @@ main:
   else:
     // Touchscreen Init
     gt911_int
-    display_driver = load_driver WROOM_16_BIT_LANDSCAPE_SETTINGS
+    display_driver = load_driver
     display = get_display display_driver
 
   ui := MainUi display display_driver
@@ -323,7 +323,7 @@ main:
     //   ui.draw
     //   sleep --ms=5000
     //   continue
-    exception := catch:
+    exception := catch --trace:
       // Send stats to server
       // if stats_timer.to_now.in_m == 5:
       //   debug system_stats
@@ -345,20 +345,24 @@ main:
         if display_timer.to_now.in_m == 5:
           debug "disabling display: timeout"
           ui.display_enabled = false
-          display_driver.backlight_off
+          set_backlight 0
 
         // Check buttons
-        if ui.send_btn.released or ui.accept_btn.released:
-          play_request
+        if ui.send_btn.released:
+          play_request "You've been invited to play fortnite!"
+        else if ui.accept_btn.released:
+          play_request "Your fortnite request has been accepted"
         else if ui.reject_btn.released:
-          play_deny
+          play_deny "Your fortnite request has been rejected"
 
         if not ui.send_btn.enabled and button_timer.to_now.in_s > 1:
           ui.buttons_enabled = true
 
+        adjust_backlight
+
         if ui.screen_btn.released:
           ui.display_enabled = false
-          display_driver.backlight_off
+          set_backlight 0
 
         sleep --ms=20
       else:
@@ -369,7 +373,7 @@ main:
           button_timer = Time.now
 
           ui.display_enabled = true
-          display_driver.backlight_on
+          set_backlight 128
           display_timer = Time.now
 
           ui.draw
@@ -386,7 +390,7 @@ screenshot_sub ui/Ui:
     ui.screenshot
 
 new_message_alert_led:
-  if SIMULATE: return
+  if SIMULATE or new_msg_alert: return
   new_msg_alert = true
   while new_msg_alert:
     Led.blue
@@ -404,12 +408,12 @@ clock time_texture/TextTexture:
       sleep_time := 60 - now.s
       sleep --ms=sleep_time*1000
 
-play_request:
-  e := catch: mqtt_service.publish "gstation_from" "fa".to_byte_array
+play_request msg:
+  e := catch: mqtt_service.publish "gstation_from" msg.to_byte_array
   if e:
     debug "couldn't send play request: $e"
 
-play_deny:
-  e := catch: mqtt_service.publish "gstation_from" "fr".to_byte_array
+play_deny msg:
+  e := catch: mqtt_service.publish "gstation_from" msg.to_byte_array
   if e:
     debug "couldn't send deny request: $e"

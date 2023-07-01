@@ -329,7 +329,7 @@ main:
 
   // display_driver := TrueColorPngDriver 480 320
   // display := TrueColorPixelDisplay display_driver
-  display_driver := load_driver WROOM_16_BIT_LANDSCAPE_SETTINGS
+  display_driver := load_driver
   display := get_display display_driver
 
   ui := MainUi display display_driver
