@@ -3,6 +3,7 @@ import net
 import net.wifi as wifi
 import pixel_display.true_color show *
 import pixel_display.texture show *
+import encoding.json
 
 import .env
 import .fortnite
@@ -27,11 +28,12 @@ mqtt_init:
     break
 
 weather_updater weather_win/ContentWindow weather_icon/TextureGroup:
-  mqtt_service.subscribe "openweather/main/temp":: | topic/string payload/ByteArray |
-    temp := float.parse payload.to_string
+  mqtt_service.subscribe "weather":: | topic/string payload/ByteArray |
+    data := json.decode payload
+    temp := (data.get "temp")
     weather_win.content = "$(%.1f temp)°C"
-  mqtt_service.subscribe "openweather/weather/0/icon" :: | topic/string payload/ByteArray |
-    code := payload.to_string[0..3]
+    
+    code := (data.get "icon")
     weather_icon.remove_all
     Weather.insert code weather_icon
     weather_icon.invalidate

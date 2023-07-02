@@ -15,18 +15,17 @@ class FortniteStats:
   fortnite_window/ContentWindow
   
   constructor .fortnite_window/ContentWindow:
-    mqtt_service.subscribe "fortnite/stats" :: | topic/string payload/ByteArray |
+    mqtt_service.subscribe "fortnite" :: | topic/string payload/ByteArray |
       data := json.decode payload
-      if (data.get "result"):
-        level = (data.get "account").get "level"
-        global := (data.get "global_stats")
-        duo := (global.get "duo")
-        solo := (global.get "solo")
+      level = (data.get "account").get "level"
+      global := (data.get "global_stats")
+      duo := (global.get "duo")
+      solo := (global.get "solo")
 
-        kills = (solo.get "kills") + (duo.get "kills")
-        wins = (solo.get "placetop1") + (duo.get "placetop1")
-        played = (solo.get "matchesplayed") + (duo.get "matchesplayed")
-        top25 = (get_top25_ solo) + (get_top25_ duo)
+      kills = (solo.get "kills") + (duo.get "kills")
+      wins = (solo.get "placetop1") + (duo.get "placetop1")
+      played = (solo.get "matchesplayed") + (duo.get "matchesplayed")
+      top25 = (get_top25_ solo) + (get_top25_ duo)
 
       fortnite_window.content = stringify
   

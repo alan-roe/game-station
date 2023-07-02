@@ -7,7 +7,7 @@ import pixel_display show *
 import .mqtt
 
                                              // MHz x    y    xoff yoff sda clock cs  dc  reset backlight invert
-ST7796_16_BIT_LANDSCAPE_SETTINGS          ::= [  80, 320, 480, 0,   0,   13, 14,   15, 2, null,   27,         false,  COLOR_TFT_FLIP_X]
+ST7796_16_BIT_LANDSCAPE_SETTINGS          ::= [  80, 320, 480, 0,   0,   13, 14,   15, 2, null,   27,         false,  (0x50 | 0x05) | COLOR_TFT_FLIP_X]
 
 ST7796_PWM_CHANNEL_BL := 12
 ST7796_PWM_FREQ_BL := 5000
