@@ -275,22 +275,11 @@ mqtt_subs ui/MainUi:
   message_updater ui.messages
   FortniteStats ui.fortnite_stats
 
-turn_off_led:
-  pin4 := gpio.Pin 4 --output
-  pin16 := gpio.Pin 16 --output
-  pin17 := gpio.Pin 17 --output
-  pin4.set 0
-  pin16.set 0
-  pin17.set 0
-  pin4.close
-  pin16.close
-  pin17.close
-
 main:
   if not SIMULATE:
     turn_off_led
     debug "Started Application\nReset Reason: $(esp32.reset_reason)"
-    sleep --ms=8000
+    sleep --ms=6000
   set_timezone "IST-1GMT0,M10.5.0,M3.5.0/1"
 
   time := Time.now.local

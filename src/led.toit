@@ -3,10 +3,10 @@ import gpio.pwm
 import .main
 
 class Led:
-  static r_ := (pwm.Pwm --frequency=400).start (gpio.Pin 4)
-  static g_ := (pwm.Pwm --frequency=400).start (gpio.Pin 16)
-  static b_ := (pwm.Pwm --frequency=400).start (gpio.Pin 17)
-  static brightness_ := .01
+  static r_ := (pwm.Pwm --frequency=60).start (gpio.Pin 4)
+  static g_ := (pwm.Pwm --frequency=60).start (gpio.Pin 16)
+  static b_ := (pwm.Pwm --frequency=60).start (gpio.Pin 17)
+  static brightness_ := .005
 
   static rgb r g b:
     r = (1.0 - (brightness_ * (r/255.0)))
@@ -37,3 +37,11 @@ class Led:
 
   static off:
     rgb 0 0 0
+
+turn_off_led:
+  pin4 := gpio.Pin 4 --pull_down
+  pin16 := gpio.Pin 16 --pull_down
+  pin17 := gpio.Pin 17 --pull_down
+  pin4.close
+  pin16.close
+  pin17.close
