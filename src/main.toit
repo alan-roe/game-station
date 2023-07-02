@@ -330,13 +330,6 @@ main:
         ui.update coords
         ui.draw 
 
-        // Disable display if 5 minutes untouched
-        if display_timer.to_now.in_m == 5:
-          debug "disabling display: timeout"
-          ui.display_enabled = false
-          set_backlight 0
-
-        // Check buttons
         if ui.send_btn.released:
           play_request "You've been invited to play fortnite!"
         else if ui.accept_btn.released:
@@ -344,15 +337,17 @@ main:
         else if ui.reject_btn.released:
           play_deny "Your fortnite request has been rejected"
 
-        if not ui.send_btn.enabled and button_timer.to_now.in_s > 1:
+        if not ui.send_btn.enabled and button_timer.to_now.in_ms >= 500:
           ui.buttons_enabled = true
 
         adjust_backlight
 
-        if ui.screen_btn.released:
+        // Disable display if button pressed or 5 minutes untouched
+        if ui.screen_btn.released or display_timer.to_now.in_m == 5:
+          debug "disabling display"
           ui.display_enabled = false
           set_backlight 0
-
+          
         sleep --ms=20
       else:
         // Re-enable on touch
@@ -362,7 +357,7 @@ main:
           button_timer = Time.now
 
           ui.display_enabled = true
-          set_backlight 128
+          adjust_backlight
           display_timer = Time.now
 
           ui.draw

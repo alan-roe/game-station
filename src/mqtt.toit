@@ -20,6 +20,8 @@ mqtt_init:
       mqtt_service = mqtt.Client --transport=transport
       options := mqtt.SessionOptions
         --client_id=MQTT_CLIENT_ID
+        --password=MQTT_PASSWORD
+        --username=MQTT_CLIENT_ID
       mqtt_service.start --options=options
     if e:
       debug "mqtt_init: $e"

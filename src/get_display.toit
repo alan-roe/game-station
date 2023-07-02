@@ -32,12 +32,12 @@ adjust_backlight:
     level = 20
   // print "level: $level, current_level: $current_level"
   if (level + 10) > current_level and (level - 10) < current_level: return
-  current_level = level
   set_backlight level
   
 set_backlight value/int:
   if value < 0: value = 0
   if value > ST7796_PWM_MAX_BL: value = ST7796_PWM_MAX_BL
+  current_level = value
   norm := (value.to_float/ST7796_PWM_MAX_BL)  
   // print "setting backlight to $norm"
   channel.set_duty_factor norm
