@@ -34,6 +34,7 @@ import .fortnite
 import .ui
 import .weather
 import .mqtt
+import .storage show bucket
 
 start_time := ""
 new_msg_alert := false
@@ -65,15 +66,17 @@ class MainUi extends Ui:
     bg_color := 0x5FCEEA
     content_color := 0xFFFFFF
     title_color := 0x1B90DD
-    
+
     window 0 0 480 320 "Jackson's Game Station"
       --title_font = Font [sans_14_bold.ASCII]
       --padding = 5
       --title_bg = title_color
       --content_bg = bg_color
 
-    weather_win = window 20 35 130 115 "Weather" 
-      --content = "??°C"
+    temp := bucket.get "weather.temp"
+     --if_absent= : "??°C"
+    weather_win = window 20 35 130 115 "Weather"
+      --content = temp
       --content_font = sans_14
       --title_font = sans_14
       --title_bg = title_color
@@ -89,9 +92,11 @@ class MainUi extends Ui:
       --content_bg = content_color
       --padding = 5
       --rounded
-
-    fortnite_stats = (window 20 160 130 140 "Fortnite Stats" 
-      --content = "Played: \nWins: \nKills: \nTop 25: "
+    
+    stats := bucket.get "fortnite"
+      --if_absent= : "Played: \nWins: \nKills: \nTop 25: "
+    fortnite_stats = (window 20 160 130 140 "Fortnite Stats"
+      --content = stats // "Played: \nWins: \nKills: \nTop 25: " 
       --content_font = sans_10
       --title_font = sans_14
       --title_bg = title_color
@@ -136,7 +141,9 @@ class MainUi extends Ui:
     weather_icon = TextureGroup
     Weather.set ctx.transform display
 
-    Weather.insert "01d" weather_icon
+    icon := bucket.get "weather.icon"
+      --if_absent= : "01d"
+    Weather.insert icon weather_icon
     display.add weather_icon 
     
     wifi_on = (IconTexture 430 (6+(icons.WIFI.icon_extent[1])) ctx.transform TEXT_TEXTURE_ALIGN_LEFT icons.WIFI icons.WIFI.font_ BLACK)
@@ -233,6 +240,7 @@ ui_callbacks ui/MainUi:
     ui.wifi_connected = true
     network = net.open
     mqtt_init
+    mqtt_subs ui
   else: monitor_wifi ui
   catch: with_timeout --ms=2000:
     while not ui.wifi_connected:

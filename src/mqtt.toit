@@ -10,6 +10,7 @@ import .fortnite
 import .ui
 import .weather
 import .main
+import .storage
 
 mqtt_service := null
 
@@ -33,9 +34,12 @@ weather_updater weather_win/ContentWindow weather_icon/TextureGroup:
   mqtt_service.subscribe "weather":: | topic/string payload/ByteArray |
     data := json.decode payload
     temp := (data.get "temp")
-    weather_win.content = "$(%.1f temp)°C"
+    temp_str := "$(%.1f temp)°C"
+    bucket["weather.temp"] = temp_str
+    weather_win.content = temp_str
     
     code := (data.get "icon")
+    bucket["weather.icon"] = code
     weather_icon.remove_all
     Weather.insert code weather_icon
     weather_icon.invalidate

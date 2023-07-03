@@ -1,5 +1,5 @@
 import encoding.json
-
+import .storage
 import .env
 import .mqtt
 import .ui
@@ -26,8 +26,10 @@ class FortniteStats:
       wins = (solo.get "placetop1") + (duo.get "placetop1")
       played = (solo.get "matchesplayed") + (duo.get "matchesplayed")
       top25 = (get_top25_ solo) + (get_top25_ duo)
-
+      
       fortnite_window.content = stringify
+      bucket["fortnite"] = stringify
+
   
   stringify -> string:
     return "Level: $level\nPlayed: $played\nWins: $wins\nKills: $kills\nTop 25: $top25"

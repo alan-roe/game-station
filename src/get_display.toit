@@ -5,7 +5,7 @@ import spi
 import color_tft show *
 import pixel_display show *
 import .mqtt
-
+import .env
                                              // MHz x    y    xoff yoff sda clock cs  dc  reset backlight invert
 ST7796_16_BIT_LANDSCAPE_SETTINGS          ::= [  80, 320, 480, 0,   0,   13, 14,   15, 2, null,   27,         false,  (0x50 | 0x05) | COLOR_TFT_FLIP_X]
 
@@ -26,6 +26,7 @@ pin_for num/int? -> gpio.Pin?:
 channel := ?
 current_level := 0
 adjust_backlight:
+  if SIMULATE: return
   // print "photo resistor value: $CDS_PIN.get"
   level := (128 - (128.0 * CDS_PIN.get).to_int)
   if level < 20:
@@ -35,6 +36,7 @@ adjust_backlight:
   set_backlight level
   
 set_backlight value/int:
+  if SIMULATE: return
   if value < 0: value = 0
   if value > ST7796_PWM_MAX_BL: value = ST7796_PWM_MAX_BL
   current_level = value
