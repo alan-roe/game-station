@@ -288,6 +288,7 @@ mqtt_subs ui/MainUi:
 main:
   if not SIMULATE:
     turn_off_led
+    Led.green
     debug "Started Application\nReset Reason: $(esp32.reset_reason)"
     sleep --ms=4000
   set_timezone "IST-1GMT0,M10.5.0,M3.5.0/1"
@@ -311,9 +312,10 @@ main:
   sleep --ms=500
   ui.draw
 
-  // stats_timer := Time.now
   display_timer := Time.now
   button_timer := Time.now
+  if not SIMULATE:
+    Led.off
 
   while true:
     // if not wifi_connect:
