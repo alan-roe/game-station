@@ -4,7 +4,7 @@ import net.wifi as wifi
 import pixel_display.true_color show *
 import pixel_display.texture show *
 import encoding.json
-
+import line_wrap show line_wrap
 import .env
 import .fortnite
 import .ui
@@ -46,12 +46,22 @@ weather_updater weather_win/ContentWindow weather_icon/TextureGroup:
 
 message_updater msg_texture/ContentWindow:
   msg_queue := []
+
   mqtt_service.subscribe "gstation_to":: | topic/string payload/ByteArray |
-    now := (Time.now).local
-    msg := payload.to_string
-    if msg_queue.size > 5:
+    msg := [payload.to_string]
+    font := msg_texture.content_font
+    msg = 
+      line_wrap msg[0] msg_texture.w_
+        --compute_width=: | s from to| 
+          w := font.text_extent s from to
+          w[0] + w[2] - 5
+        --can_split=: |s i| 
+          if i < s.size:
+            s[i] == ' '
+          else: false
+    msg.do: msg_queue.add it
+    while msg_queue.size > 6:
       msg_queue.remove msg_queue.first
-    msg_queue.add msg
     new_msg := ""
     msg_queue.do: new_msg = new_msg + "$it\n" 
     task:: new_message_alert_led

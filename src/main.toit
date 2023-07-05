@@ -67,11 +67,13 @@ class MainUi extends Ui:
     content_color := 0xFFFFFF
     title_color := 0x1B90DD
 
+    display.background = bg_color
+
     window 0 0 480 320 "Jackson's Game Station"
       --title_font = Font [sans_14_bold.ASCII]
       --padding = 5
       --title_bg = title_color
-      --content_bg = bg_color
+      --only_bars
 
     temp := bucket.get "weather.temp"
      --if_absent= : "??°C"
@@ -287,7 +289,7 @@ main:
   if not SIMULATE:
     turn_off_led
     debug "Started Application\nReset Reason: $(esp32.reset_reason)"
-    sleep --ms=6000
+    sleep --ms=4000
   set_timezone "IST-1GMT0,M10.5.0,M3.5.0/1"
 
   time := Time.now.local
@@ -307,7 +309,6 @@ main:
   ui := MainUi display display_driver
   ui_callbacks ui
   sleep --ms=500
-
   ui.draw
 
   // stats_timer := Time.now

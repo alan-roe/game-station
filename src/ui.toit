@@ -46,12 +46,13 @@ class ContentWindow extends UiElement:
 
   content_tx_ := ?
 
-  constructor x_ y_ .w_ .h_ .title content/string tracker --rounded/bool?=false --.title_font/Font?=(Font.get "sans10") --.content_font/Font?=(Font.get "sans10") --.font_color/int?=BLACK --x_padding/int?=0 --.padding/int?=2 --.title_bg/int?=0xa6a6a6 --.content_bg/int?=0xc4c4c4 --transform/Transform?=Transform.identity:
+  constructor x_ y_ .w_ .h_ .title content/string tracker --only_bars/bool?=false --rounded/bool?=false --.title_font/Font?=(Font.get "sans10") --.content_font/Font?=(Font.get "sans10") --.font_color/int?=BLACK --x_padding/int?=0 --.padding/int?=2 --.title_bg/int?=0xa6a6a6 --.content_bg/int?=0xc4c4c4 --transform/Transform?=Transform.identity:
     title_text_h := text_height title title_font
     title_bar_h_ = title_text_h + (padding*2)
     content_height := text_height content content_font
     content_offset := title_bar_h_ + padding + content_height
-  
+    content_y := (y_ + title_bar_h_)
+    content_h := (h_ - title_bar_h_ - 8)
     content_tx_ = (MultiLineText (x_ + x_padding) (y_ + content_offset) content content_font font_color transform padding tracker)
     
     super x_ y_ transform tracker
@@ -71,12 +72,15 @@ class ContentWindow extends UiElement:
       tx_g_.add (FilledRectangle.line BLACK x_ (y_+h_ - 1) (x_ + w_) (y_+h_ - 1) transform)
       // Right
       tx_g_.add (FilledRectangle.line BLACK (x_+w_ - 1) y_ (x_+w_ - 1) (y_+h_) transform)
-      tx_g_.add (FilledRectangle title_bg (x_ + 1) (y_ + 1) (w_ - 2) (h_ - 2) transform)
+      // Bars
+      tx_g_.add (FilledRectangle title_bg (x_ + 1) (y_ + 1) (w_ - 2) (title_bar_h_ ) transform)
+      tx_g_.add (FilledRectangle title_bg (x_ + 1) (content_y + content_h) (w_ - 2) (h_ - content_h - title_bar_h_ - 1) transform)
 
-    tx_g_.add (FilledRectangle content_bg (x_ + 1) (y_ + title_bar_h_ + 1) (w_ - 2) (h_ - title_bar_h_ - 10) transform)
+
+    if not only_bars:
+      tx_g_.add (FilledRectangle content_bg (x_ + 1) (y_ + title_bar_h_ + 1) (w_ - 2) (h_ - title_bar_h_ - 10) transform)
     // Content Outline
-    content_y := (y_ + title_bar_h_)
-    content_h := (h_ - title_bar_h_ - 8)
+    
     // Top
     tx_g_.add (FilledRectangle.line BLACK x_ content_y (x_ + w_) content_y transform)
     // Bottom
@@ -272,7 +276,7 @@ abstract class Ui:
     display.add el.tx_g_
     els.add el
 
-  window x y w h title --rounded/bool?=false --content/string?="" --content_font/Font?=(Font.get "sans10") --title_font/Font?=(Font.get "sans10") --font_color/int?=BLACK --x_padding/int?=0 --padding/int?=2 --title_bg/int?=0xa6a6a6 --content_bg/int?=0xc4c4c4 -> ContentWindow:
+  window x y w h title --only_bars/bool?=false --rounded/bool?=false --content/string?="" --content_font/Font?=(Font.get "sans10") --title_font/Font?=(Font.get "sans10") --font_color/int?=BLACK --x_padding/int?=0 --padding/int?=2 --title_bg/int?=0xa6a6a6 --content_bg/int?=0xc4c4c4 -> ContentWindow:
     win := ContentWindow x y w h title content display
       --title_font=title_font
       --content_font=content_font
@@ -283,6 +287,7 @@ abstract class Ui:
       --content_bg=content_bg
       --transform=ctx.transform
       --rounded=rounded
+      --only_bars=only_bars
     display.add win.tx_g_
     els.add win
     
