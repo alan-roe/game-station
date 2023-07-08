@@ -279,11 +279,27 @@ monitor_wifi ui/MainUi:
       sleep --ms=1000
 
 mqtt_subs ui/MainUi:
-  if SIMULATE:
-    screenshot_sub ui
-  weather_updater ui.weather_win ui.weather_icon
-  message_updater ui.messages
-  FortniteStats ui.fortnite_stats
+  task::
+    mqtt_lost := false
+    resub := true
+    while true:
+      if resub:
+        if SIMULATE:
+          screenshot_sub ui
+        weather_updater ui.weather_win ui.weather_icon
+        message_updater ui.messages
+        FortniteStats ui.fortnite_stats
+        resub = false
+      else:
+        if not mqtt_service.client_.connection_.is_alive:
+          mqtt_service.unsubscribe_all ["gstation_to", "fortnite", "weather"]
+          print "mqtt_lost"
+          mqtt_lost = true
+        else if mqtt_lost:
+          print "mqtt found"
+          mqtt_lost = false
+          resub = true
+      sleep --ms=1000
 
 main:
   if not SIMULATE:

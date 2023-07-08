@@ -12,7 +12,7 @@ import .weather
 import .main
 import .storage
 
-mqtt_service := null
+mqtt_service/mqtt.Client? := null
 
 mqtt_init:
   while true:
@@ -44,9 +44,8 @@ weather_updater weather_win/ContentWindow weather_icon/TextureGroup:
     Weather.insert code weather_icon
     weather_icon.invalidate
 
+msg_queue := []
 message_updater msg_texture/ContentWindow:
-  msg_queue := []
-
   mqtt_service.subscribe "gstation_to":: | topic/string payload/ByteArray |
     msg := [payload.to_string]
     font := msg_texture.content_font
